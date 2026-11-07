@@ -1,0 +1,38 @@
+<header class="navbar">
+  <a class="brand" routerLink="/" aria-label="Jangalma — accueil">
+    <img src="images/logo.png" alt="" class="brand__logo" width="40" height="34" />
+    <span class="brand__name">Jangalma</span>
+  </a>
+
+  <nav class="nav-links" [class.nav-links--open]="menuOuvert()" aria-label="Navigation principale">
+    @for (link of links; track link.href) {
+      <a
+        class="nav-links__item"
+        [routerLink]="link.href"
+        routerLinkActive="nav-links__item--active"
+        [routerLinkActiveOptions]="{ exact: link.href === '/' }"
+        (click)="fermerMenu()"
+      >{{ link.label }}</a>
+    }
+  </nav>
+
+  <div class="navbar__actions">
+    <a class="btn btn--primary btn--small" routerLink="/connexion">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="8" r="4" fill="currentColor" />
+        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" fill="currentColor" />
+      </svg>
+      <span class="btn__label">Se connecter</span>
+    </a>
+
+    <button
+      class="menu-toggle"
+      type="button"
+      [attr.aria-expanded]="menuOuvert()"
+      aria-label="Ouvrir le menu"
+      (click)="toggleMenu()"
+    >
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>

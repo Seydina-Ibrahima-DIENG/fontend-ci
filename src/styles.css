@@ -1,0 +1,49 @@
+/* ============================================================
+   Jangalma — design tokens & base
+   ============================================================ */
+:root {
+  --green-900: #0f3b2e;   /* vert profond : boutons, titres */
+  --green-700: #1d6b4f;   /* vert actif : lien actif, accents */
+  --green-100: #d7e9df;   /* fond des badges */
+  --orange-500: #f29a2e;  /* accent : "réussir ensemble" */
+  --text-900: #14231d;
+  --text-600: #3d4f48;
+  --cream-50: #fbf7f2;
+  --white: #ffffff;
+
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  --navbar-h: 88px;
+  --gutter: 16px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  color: var(--text-900);
+  background: var(--cream-50);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+button,
+a {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

@@ -1,0 +1,125 @@
+<section class="page">
+  <div class="page__inner">
+    <header class="page__head">
+      <p class="page__eyebrow">Bibliothèque</p>
+      <h1 class="page__title">Ressources <span class="accent">pédagogiques</span></h1>
+      <p class="page__lead">
+        Cours, TD, TP, corrigés et sujets d'examen, classés par filière, niveau et matière.
+      </p>
+      <p class="page__demo">Données de démonstration : elles seront remplacées par le backend.</p>
+    </header>
+
+    <form class="filtres" (submit)="$event.preventDefault()" role="search">
+      <label class="champ champ--recherche">
+        <span class="champ__label">Rechercher</span>
+        <input
+          type="search"
+          name="recherche"
+          placeholder="Ex. algorithmique, sujet 2025, TD 2…"
+          [ngModel]="recherche()"
+          (ngModelChange)="recherche.set($event)"
+        />
+      </label>
+
+      <label class="champ">
+        <span class="champ__label">Niveau</span>
+        <select name="niveau" [ngModel]="filtreNiveau()" (ngModelChange)="filtreNiveau.set($event)">
+          <option value="">Tous</option>
+          @for (niveau of niveaux(); track niveau) {
+            <option [value]="niveau">{{ niveau }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="champ">
+        <span class="champ__label">Matière</span>
+        <select name="matiere" [ngModel]="filtreMatiere()" (ngModelChange)="filtreMatiere.set($event)">
+          <option value="">Toutes</option>
+          @for (matiere of matieres(); track matiere) {
+            <option [value]="matiere">{{ matiere }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="champ">
+        <span class="champ__label">Type</span>
+        <select name="type" [ngModel]="filtreType()" (ngModelChange)="filtreType.set($event)">
+          <option value="">Tous</option>
+          @for (type of types; track type) {
+            <option [value]="type">{{ libellesType[type] }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="champ">
+        <span class="champ__label">Année</span>
+        <select name="annee" [ngModel]="filtreAnnee()" (ngModelChange)="filtreAnnee.set($event)">
+          <option value="">Toutes</option>
+          @for (annee of annees(); track annee) {
+            <option [value]="annee">{{ annee }}</option>
+          }
+        </select>
+      </label>
+    </form>
+
+    <div class="barre">
+      <p class="barre__compte">
+        <strong>{{ resultats().length }}</strong>
+        résultat{{ resultats().length > 1 ? 's' : '' }}
+      </p>
+      @if (filtresActifs()) {
+        <button type="button" class="link-button" (click)="reinitialiser()">Réinitialiser les filtres</button>
+      }
+    </div>
+
+    @if (resultats().length === 0) {
+      <div class="vide">
+        <p class="vide__titre">Aucune ressource ne correspond à ta recherche.</p>
+        <p>Essaie avec un autre mot-clé ou retire quelques filtres.</p>
+      </div>
+    } @else {
+      <ul class="liste">
+        @for (r of resultats(); track r.id) {
+          <li class="ressource">
+            <div class="ressource__corps">
+              <div class="ressource__badges">
+                <span class="badge badge--{{ r.type }}">{{ libellesType[r.type] }}</span>
+                <span class="badge badge--neutre">{{ r.niveau }}</span>
+              </div>
+              <h2 class="ressource__titre">{{ r.titre }}</h2>
+              <p class="ressource__meta">
+                {{ r.matiere }} · {{ r.filiere }} · {{ r.annee }} · {{ r.format }} · {{ r.tailleKo }} Ko
+              </p>
+              <p class="ressource__meta">
+                Déposé par {{ r.deposePar }} · {{ nbTelechargements(r) }} téléchargement{{ nbTelechargements(r) > 1 ? 's' : '' }}
+              </p>
+            </div>
+
+            <div class="ressource__actions">
+              <button
+                type="button"
+                class="icone-btn"
+                [class.icone-btn--actif]="favoris().has(r.id)"
+                [attr.aria-pressed]="favoris().has(r.id)"
+                [attr.aria-label]="favoris().has(r.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'"
+                (click)="toggleFavori(r.id)"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m12 3.8 2.5 5.1 5.6.8-4 3.9.9 5.6L12 16.6l-5 2.6.9-5.6-4-3.9 5.6-.8L12 3.8Z"
+                    [attr.fill]="favoris().has(r.id) ? 'currentColor' : 'none'"
+                    stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                </svg>
+              </button>
+              <button type="button" class="btn btn--primary btn--small" (click)="telecharger(r)">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 4v11m0 0 4.5-4.5M12 15l-4.5-4.5M5 19h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                Télécharger
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+</section>

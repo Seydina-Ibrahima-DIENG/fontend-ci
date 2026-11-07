@@ -1,0 +1,157 @@
+<!-- ============================ HERO ============================ -->
+<section class="hero" aria-labelledby="hero-titre">
+  <!-- Décor : forme verte en bas à gauche -->
+  <div class="hero__blob hero__blob--left" aria-hidden="true"></div>
+
+  <div class="hero__content">
+    <h1 id="hero-titre" class="hero__brand">Jangalma</h1>
+
+    <h2 class="hero__headline">
+      <span class="hero__headline-line">Apprendre ensemble,</span>
+      <span class="hero__headline-line hero__headline-line--accent">
+        réussir ensemble<span class="hero__underline" aria-hidden="true"></span>.
+      </span>
+    </h2>
+
+    <p class="hero__text">
+      Une plateforme pensée pour les étudiants de l'UADB.
+      Accède aux ressources pédagogiques, partage tes connaissances
+      et progresse avec l'aide d'autres étudiants.
+    </p>
+
+    <div class="hero__actions">
+      <a class="btn btn--primary" routerLink="/ressources">
+        Explorer les ressources
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M4 12h14m-5-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </a>
+      <a class="btn btn--ghost" routerLink="/tuteur">
+        <svg class="icon icon--play" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" fill="currentColor" />
+          <path d="M10 8.5v7l5.5-3.5L10 8.5Z" fill="var(--white)" />
+        </svg>
+        <span>voir les tuteurs</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PILIERS ============================ -->
+<section class="section section--piliers" aria-labelledby="piliers-titre">
+  <div class="section__inner">
+    <p class="section__eyebrow">Ce que tu trouves ici</p>
+    <h2 id="piliers-titre" class="section__title">Trois façons de progresser, <span class="accent">un seul compte.</span></h2>
+
+    <div class="piliers">
+      @for (pilier of piliers; track pilier.titre) {
+        <article class="pilier">
+          <span class="pilier__icone" aria-hidden="true">
+            @switch (pilier.icone) {
+              @case ('book') {
+                <svg viewBox="0 0 24 24"><path d="M4 5.5C5.8 4.6 8 4.4 12 6c4-1.6 6.2-1.4 8 -0.5V19c-1.8-.9-4-1.1-8 .5-4-1.6-6.2-1.4-8-.5V5.5Zm8 2.4v11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>
+              }
+              @case ('users') {
+                <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M3 19c.6-3 3-4.8 6-4.8s5.4 1.8 6 4.8M15.5 4.6a3.2 3.2 0 0 1 0 6.2M17.5 14.4c1.8.6 3 2.3 3.4 4.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /></svg>
+              }
+              @case ('bolt') {
+                <svg viewBox="0 0 24 24"><path d="M13 3 5 13.5h6L10 21l8-10.5h-6L13 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" /></svg>
+              }
+            }
+          </span>
+          <h3 class="pilier__titre">{{ pilier.titre }}</h3>
+          <p class="pilier__texte">{{ pilier.texte }}</p>
+        </article>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- ============================ RESSOURCES ============================ -->
+<section class="section section--ressources" aria-labelledby="ressources-titre">
+  <div class="section__inner">
+    <div class="section__head">
+      <div>
+        <p class="section__eyebrow">Bibliothèque</p>
+        <h2 id="ressources-titre" class="section__title">Tous tes supports, <span class="accent">au même endroit.</span></h2>
+      </div>
+      <a class="link-arrow" routerLink="/ressources">Voir toute la bibliothèque →</a>
+    </div>
+
+    <div class="categories">
+      @for (categorie of categories; track categorie.titre) {
+        <a class="categorie" routerLink="/ressources">
+          <h3 class="categorie__titre">{{ categorie.titre }}</h3>
+          <p class="categorie__texte">{{ categorie.texte }}</p>
+        </a>
+      }
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ÉTAPES ============================ -->
+<section class="section section--etapes" aria-labelledby="etapes-titre">
+  <div class="section__inner">
+    <p class="section__eyebrow">Comment ça marche</p>
+    <h2 id="etapes-titre" class="section__title">Un tutorat en <span class="accent">trois étapes.</span></h2>
+
+    <ol class="etapes">
+      @for (etape of etapes; track etape.numero) {
+        <li class="etape">
+          <span class="etape__numero">{{ etape.numero }}</span>
+          <h3 class="etape__titre">{{ etape.titre }}</h3>
+          <p class="etape__texte">{{ etape.texte }}</p>
+        </li>
+      }
+    </ol>
+  </div>
+</section>
+
+<!-- ============================ DEVENIR TUTEUR ============================ -->
+<section class="section section--cta" aria-labelledby="cta-titre">
+  <div class="section__inner">
+    <div class="cta">
+      <div class="cta__texte">
+        <p class="cta__eyebrow">Tu as un niveau d'avance ?</p>
+        <h2 id="cta-titre" class="cta__titre">Deviens <span class="accent">tuteur.</span></h2>
+        <p class="cta__lead">
+          Aide les étudiants de niveau inférieur dans tes matières.
+          Ton compte est validé par l'administration avant ta première séance.
+        </p>
+      </div>
+      <a class="btn btn--light" routerLink="/devenir-tuteur">Faire ma demande</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ PIED DE PAGE ============================ -->
+<footer class="footer">
+  <div class="footer__inner">
+    <div class="footer__brand">
+      <div class="footer__logo">
+        <img src="images/logo.png" alt="" width="32" height="27" />
+        <span>Jangalma</span>
+      </div>
+      <p>Plateforme de ressources pédagogiques et de tutorat pour les étudiants de l'Université Alioune Diop de Bambey.</p>
+    </div>
+
+    <nav class="footer__col" aria-label="Plateforme">
+      <h3>Plateforme</h3>
+      <a routerLink="/ressources">Ressources</a>
+      <a routerLink="/tuteur">Tuteurs</a>
+      <a routerLink="/communaute">Communauté</a>
+      <a routerLink="/a-propos">À propos</a>
+    </nav>
+
+    <nav class="footer__col" aria-label="Compte">
+      <h3>Compte</h3>
+      <a routerLink="/connexion">Se connecter</a>
+      <a routerLink="/inscription">Créer un compte</a>
+      <a routerLink="/devenir-tuteur">Devenir tuteur</a>
+    </nav>
+  </div>
+
+  <div class="footer__bottom">
+    <span>© 2026 Jangalma — UADB, Bambey</span>
+  </div>
+</footer>

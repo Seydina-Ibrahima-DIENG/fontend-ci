@@ -1,15 +1,20 @@
 /* ============================================================
-   Jangalma — design tokens & base
+   Jangalma — design tokens & styles partagés
    ============================================================ */
 :root {
   --green-900: #0f3b2e;   /* vert profond : boutons, titres */
   --green-700: #1d6b4f;   /* vert actif : lien actif, accents */
   --green-100: #d7e9df;   /* fond des badges */
-  --orange-500: #f29a2e;  /* accent : "réussir ensemble" */
+  --orange-500: #f29a2e;  /* accent */
   --text-900: #14231d;
   --text-600: #3d4f48;
   --cream-50: #fbf7f2;
   --white: #ffffff;
+  --line: #e6ece8;
+  --danger: #b42318;
+  --danger-bg: #fde8e6;
+  --success: #1d6b4f;
+  --success-bg: #e3f3ea;
 
   --font-display: 'Outfit', system-ui, sans-serif;
   --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -46,4 +51,417 @@ a {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* ---------- Pages internes ---------- */
+.page {
+  min-height: 100vh;
+  padding: calc(var(--navbar-h) + 32px) clamp(var(--gutter), 5.8vw, 80px) 96px;
+  background: var(--cream-50);
+}
+
+.page__inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.page--narrow .page__inner {
+  max-width: 560px;
+}
+
+.page__eyebrow {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--green-700);
+}
+
+.page__title {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--green-900);
+}
+
+.page__lead {
+  margin: 0 0 32px;
+  max-width: 640px;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-600);
+}
+
+.h2 {
+  margin: 0 0 16px;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--green-900);
+}
+
+.accent {
+  color: var(--orange-500);
+}
+
+.muted {
+  color: var(--text-600);
+}
+
+.stack {
+  display: grid;
+  gap: 24px;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.row--between {
+  justify-content: space-between;
+}
+
+/* ---------- Cartes ---------- */
+.card {
+  padding: 24px;
+  border-radius: 18px;
+  background: var(--white);
+  border: 1px solid var(--line);
+}
+
+.card--muted {
+  background: var(--cream-50);
+}
+
+/* ---------- Boutons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px 24px;
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn--primary {
+  background: var(--green-900);
+  border-color: var(--green-900);
+  color: var(--white);
+}
+
+.btn--primary:hover {
+  background: #145140;
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: var(--text-900);
+  color: var(--text-900);
+}
+
+.btn--ghost:hover {
+  background: var(--white);
+}
+
+.btn--danger {
+  background: var(--white);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn--danger:hover {
+  background: var(--danger-bg);
+}
+
+.btn--small {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--green-700);
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Formulaires ---------- */
+.form {
+  display: grid;
+  gap: 18px;
+}
+
+.champ {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.champ__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--green-900);
+}
+
+.champ__aide {
+  font-size: 13px;
+  color: var(--text-600);
+}
+
+.champ input,
+.champ select,
+.champ textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1.5px solid #d9e3dd;
+  border-radius: 12px;
+  background: var(--white);
+  font: inherit;
+  font-size: 15px;
+  color: var(--text-900);
+}
+
+.champ textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.champ input:focus,
+.champ select:focus,
+.champ textarea:focus {
+  outline: none;
+  border-color: var(--green-700);
+  box-shadow: 0 0 0 3px rgba(29, 107, 79, 0.15);
+}
+
+.champ--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+}
+
+/* ---------- Badges, onglets, tableaux ---------- */
+.badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--green-100);
+  color: var(--green-900);
+  white-space: nowrap;
+}
+
+.badge--neutre {
+  background: #efefe9;
+  color: var(--text-600);
+}
+
+.badge--attente {
+  background: #fde7c8;
+  color: #7a4a0a;
+}
+
+.badge--danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.badge--info {
+  background: #d8ecf7;
+  color: #1d4f6b;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.tab {
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--white);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-600);
+  cursor: pointer;
+}
+
+.tab--actif {
+  border-color: var(--green-900);
+  background: var(--green-900);
+  color: var(--white);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.table th,
+.table td {
+  padding: 14px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.table th {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-600);
+}
+
+/* ---------- Alertes et états vides ---------- */
+.alert {
+  padding: 14px 18px;
+  border-radius: 12px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.alert--erreur {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.alert--succes {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.alert--info {
+  background: #eef4f0;
+  color: var(--text-600);
+}
+
+.empty {
+  padding: 40px 24px;
+  border-radius: 18px;
+  border: 1px dashed #c9d6cf;
+  background: var(--white);
+  text-align: center;
+  color: var(--text-600);
+}
+
+.empty p {
+  margin: 0;
+}
+
+/* ---------- Stats (tableau de bord) ---------- */
+.stat {
+  padding: 22px 24px;
+  border-radius: 18px;
+  background: var(--white);
+  border: 1px solid var(--line);
+}
+
+.stat__valeur {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--green-900);
+  line-height: 1.1;
+}
+
+.stat__label {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--text-600);
+}
+
+/* Barres horizontales simples */
+.barre-stat {
+  display: grid;
+  grid-template-columns: 160px 1fr 48px;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.barre-stat__piste {
+  height: 10px;
+  border-radius: 999px;
+  background: #eef3ef;
+  overflow: hidden;
+}
+
+.barre-stat__remplissage {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green-700);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 960px) {
+  .grid-2,
+  .grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: calc(72px + 24px) var(--gutter) 64px;
+  }
+
+  .table {
+    font-size: 14px;
+  }
+
+  .barre-stat {
+    grid-template-columns: 110px 1fr 40px;
+  }
 }

@@ -55,9 +55,13 @@
 }
 
 /* ---------- Filtres ---------- */
+.filtres .champ--recherche {
+  grid-column: 1 / -1;
+}
+
 .filtres {
   display: grid;
-  grid-template-columns: 2fr repeat(4, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 14px;
   padding: 20px;
   border-radius: 20px;
@@ -289,6 +293,92 @@
 
 .vide p {
   margin: 0;
+}
+
+/* ---------- Mise en page avec arborescence (F2.2) ---------- */
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.contenu {
+  min-width: 0;
+}
+
+.arbre {
+  position: sticky;
+  top: calc(var(--navbar-h) + 16px);
+  max-height: calc(100vh - var(--navbar-h) - 32px);
+  overflow-y: auto;
+}
+
+.arbre__titre {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--green-900);
+}
+
+.arbre__ufr {
+  margin: 14px 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-600);
+}
+
+.arbre__item,
+.arbre__matiere {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-900);
+  cursor: pointer;
+}
+
+.arbre__item {
+  font-weight: 600;
+}
+
+.arbre__matiere {
+  padding-left: 22px;
+  font-size: 13px;
+  color: var(--text-600);
+}
+
+.arbre__item:hover,
+.arbre__matiere:hover {
+  background: var(--green-100);
+}
+
+.arbre__item--actif {
+  background: var(--green-100);
+  color: var(--green-900);
+}
+
+.ressource__titre a:hover {
+  color: var(--green-700);
+}
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .arbre {
+    position: static;
+    max-height: none;
+  }
 }
 
 /* ---------- Responsive ---------- */

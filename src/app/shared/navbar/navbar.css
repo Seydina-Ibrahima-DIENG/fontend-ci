@@ -35,7 +35,7 @@
 /* ---------- Liens ---------- */
 .nav-links {
   display: flex;
-  gap: clamp(20px, 2.8vw, 40px);
+  gap: clamp(16px, 2.2vw, 40px);
 }
 
 .nav-links__item {
@@ -135,6 +135,56 @@
   flex-shrink: 0;
 }
 
+/* ---------- Connecté : cloche et boutons ---------- */
+.icone-lien {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 1.5px solid var(--line);
+  color: var(--green-900);
+}
+
+.icone-lien svg {
+  width: 20px;
+  height: 20px;
+}
+
+.icone-lien__pastille {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--orange-500);
+  color: var(--white);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-links__item--mobile {
+  display: none;
+}
+
+.nav-links__button {
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-900);
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 960px) {
   .navbar {
@@ -175,6 +225,14 @@
 
   .menu-toggle {
     display: flex;
+  }
+
+  .nav-desktop {
+    display: none;
+  }
+
+  .nav-links__item--mobile {
+    display: block;
   }
 }
 

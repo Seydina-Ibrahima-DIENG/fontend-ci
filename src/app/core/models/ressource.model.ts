@@ -23,4 +23,9 @@ export interface Ressource {
   tailleKo: number;
   deposePar: string;
   telechargements: number;
+  /** Absent = publiée (données de démo). Un dépôt démarre en attente de validation (F3.3). */
+  statut?: StatutRessource;
+  description?: string;
 }
+
+export type StatutRessource = 'publiee' | 'en_attente' | 'rejetee';

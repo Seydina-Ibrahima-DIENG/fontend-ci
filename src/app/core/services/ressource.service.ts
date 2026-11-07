@@ -1,6 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, computed, signal } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { Ressource } from '../models/ressource.model';
+import { Signalement } from '../models/models';
 
 /**
  * Service de ressources.
@@ -124,8 +125,59 @@ export class RessourceService {
     },
   ];
 
-  /** Liste des ressources (simulée : renvoyée immédiatement). */
+  /** Store réactif des ressources (mock, en mémoire). */
+  readonly ressources = signal<Ressource[]>(this.donnees);
+
+  /** Ressources publiées, visibles par tous. */
+  readonly publiees = computed(() => this.ressources().filter((r) => !r.statut || r.statut === 'publiee'));
+
+  /** Ressources en attente de validation (F3.3). */
+  readonly enAttente = computed(() => this.ressources().filter((r) => r.statut === 'en_attente'));
+
   getRessources(): Observable<Ressource[]> {
-    return of(this.donnees);
+    return of(this.publiees());
+  }
+
+  trouver(id: number): Ressource | undefined {
+    return this.ressources().find((r) => r.id === id);
+  }
+
+  /** Dépôt d'une ressource (F3.1) : elle reste en attente tant qu'elle n'est pas validée. */
+  deposer(data: Omit<Ressource, 'id' | 'telechargements' | 'statut'>): Ressource {
+    const id = Math.max(0, ...this.ressources().map((r) => r.id)) + 1;
+    const r: Ressource = { ...data, id, telechargements: 0, statut: 'en_attente' };
+    this.ressources.update((l) => [r, ...l]);
+    return r;
+  }
+
+  valider(id: number): void {
+    this.ressources.update((l) => l.map((r) => (r.id === id ? { ...r, statut: 'publiee' } : r)));
+  }
+
+  rejeter(id: number): void {
+    this.ressources.update((l) => l.map((r) => (r.id === id ? { ...r, statut: 'rejetee' } : r)));
+  }
+
+  supprimer(id: number): void {
+    this.ressources.update((l) => l.filter((r) => r.id !== id));
+  }
+
+  // ---------- Signalements (F3.8, F7.2) ----------
+  readonly signalements = signal<Signalement[]>([
+    { id: 1, ressourceId: 6, motif: 'Le contenu ne correspond pas à la matière indiquée.', statut: 'ouvert' },
+  ]);
+
+  signaler(ressourceId: number, motif: string): void {
+    const id = Math.max(0, ...this.signalements().map((s) => s.id)) + 1;
+    this.signalements.update((l) => [...l, { id, ressourceId, motif, statut: 'ouvert' }]);
+  }
+
+  traiterSignalement(id: number): void {
+    this.signalements.update((l) => l.map((s) => (s.id === id ? { ...s, statut: 'traite' } : s)));
+  }
+
+  /** Compteur de téléchargements (F3.6). */
+  incrementerTelechargements(id: number): void {
+    this.ressources.update((l) => l.map((r) => (r.id === id ? { ...r, telechargements: r.telechargements + 1 } : r)));
   }
 }

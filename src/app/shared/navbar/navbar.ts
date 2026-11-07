@@ -1,5 +1,7 @@
-import { Component, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, inject, signal } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { AuthService } from '../../core/services/auth.service';
+import { NotificationService } from '../../core/services/notification.service';
 
 interface NavLink {
   label: string;
@@ -13,6 +15,10 @@ interface NavLink {
   styleUrl: './navbar.css',
 })
 export class NavbarComponent {
+  protected readonly auth = inject(AuthService);
+  protected readonly notifService = inject(NotificationService);
+  private readonly router = inject(Router);
+
   protected readonly links: NavLink[] = [
     { label: 'Accueil', href: '/' },
     { label: 'Ressources', href: '/ressources' },
@@ -22,6 +28,22 @@ export class NavbarComponent {
   ];
 
   protected readonly menuOuvert = signal(false);
+
+  /** Accueil de l'espace selon le rôle. */
+  protected espaceHref(): string {
+    return this.auth.role() === 'admin' ? '/admin' : '/mes-seances';
+  }
+
+  protected nonLues(): number {
+    const u = this.auth.courant();
+    return u ? this.notifService.nonLuesPour(u.id) : 0;
+  }
+
+  protected deconnecter(): void {
+    this.auth.deconnecter();
+    this.menuOuvert.set(false);
+    this.router.navigateByUrl('/');
+  }
 
   protected fermerMenu(): void {
     this.menuOuvert.set(false);

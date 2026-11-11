@@ -30,11 +30,16 @@ pipeline {
                     reuseNode true
                 }
             }
-            environment {
+                environment {
                 npm_config_cache = "${WORKSPACE}/.npm"
+                // Connexion instable : npm réessaie et attend plus longtemps avant d'abandonner
+                npm_config_fetch_retries = '5'
+                npm_config_fetch_retry_mintimeout = '20000'
+                npm_config_fetch_retry_maxtimeout = '120000'
+                npm_config_fetch_timeout = '600000'
             }
             steps {
-                sh 'npm ci'
+                sh 'npm ci --prefer-offline --no-audit --no-fund'
                 sh 'npm run build'
             }
         }

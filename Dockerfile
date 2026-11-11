@@ -27,6 +27,13 @@ RUN npm run build
 # Variante "unprivileged" : Nginx tourne SANS droits root (port 8080)
 FROM nginxinc/nginx-unprivileged:alpine
 
+
+# Correctif de sécurité : applique les mises à jour des paquets Alpine.
+# Corrige notamment CVE-2026-111497 (brotli-libs, CRITICAL) détectée par Trivy.
+USER root
+RUN apk upgrade --no-cache
+USER 101
+
 # Notre configuration Nginx (pages Angular + redirection /api vers la gateway)
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 

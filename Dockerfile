@@ -7,8 +7,17 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # 1) D'abord UNIQUEMENT les fichiers de dépendances (pour profiter du cache Docker)
+# Connexion instable : npm réessaie et attend plus longtemps avant d'abandonner
+ENV npm_config_fetch_retries=5 \
+    npm_config_fetch_retry_mintimeout=20000 \
+    npm_config_fetch_retry_maxtimeout=120000 \
+    npm_config_fetch_timeout=600000
+
 COPY package.json package-lock.json ./
-RUN npm ci
+
+# Le cache npm est conservé entre les builds (comme le cache Maven du backend)
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline --no-audit --no-fund
 
 # 2) Ensuite le code source, puis la compilation en mode production
 COPY . .

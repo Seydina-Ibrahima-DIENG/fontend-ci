@@ -8,3 +8,5 @@ Dockerfile
 .dockerignore
 *.log
 .env*
+.npm
+npm-audit.json

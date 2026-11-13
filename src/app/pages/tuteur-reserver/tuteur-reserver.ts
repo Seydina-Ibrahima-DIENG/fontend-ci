@@ -1,10 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { LieuSeance } from '../../core/models/models';
-import { AuthService } from '../../core/services/auth.service';
-import { TuteurService } from '../../core/services/tuteur.service';
-import { UtilisateurService } from '../../core/services/utilisateur.service';
+import { TuteurProfilResponse } from '../../core/api/api';
+import { StructureService } from '../../core/services/structure.service';
+import { TutoratService } from '../../core/services/tutorat.service';
 
 @Component({
   selector: 'app-tuteur-reserver',
@@ -16,23 +15,15 @@ import { UtilisateurService } from '../../core/services/utilisateur.service';
 
         @if (tuteur(); as t) {
           <p class="page__eyebrow" style="margin-top: 20px">Réservation</p>
-          <h1 class="page__title">Réserver avec {{ t.nom }}</h1>
-          <p class="page__lead">Choisis une matière, un créneau et le lieu. Le tuteur accepte, refuse ou reporte ta demande.</p>
+          <h1 class="page__title">Réserver avec le tuteur n°{{ t.id }}</h1>
+          <p class="page__lead">Choisis une matière, une date et un créneau. Le tuteur accepte ou refuse ta demande.</p>
 
           <form class="card form" (ngSubmit)="valider()">
             <label class="champ">
               <span class="champ__label">Matière</span>
-              <select name="matiere" required [(ngModel)]="matiere">
-                <option value="">Choisis une matière</option>
-                @for (m of t.matieres; track m) { <option [value]="m">{{ m }}</option> }
-              </select>
-            </label>
-
-            <label class="champ">
-              <span class="champ__label">Créneau</span>
-              <select name="dispo" required [(ngModel)]="dispoId">
-                <option [ngValue]="null">Choisis un créneau</option>
-                @for (d of dispos(); track d.id) { <option [ngValue]="d.id">{{ d.jour }} · {{ d.debut }} – {{ d.fin }}</option> }
+              <select name="matiere" required [(ngModel)]="coursId">
+                <option [ngValue]="null" disabled>Choisis une matière</option>
+                @for (m of matieres(t); track m.id) { <option [ngValue]="m.id">{{ m.nom }}</option> }
               </select>
             </label>
 
@@ -41,24 +32,42 @@ import { UtilisateurService } from '../../core/services/utilisateur.service';
               <input type="date" name="date" required [(ngModel)]="date" />
             </label>
 
+            <div class="grid-2">
+              <label class="champ">
+                <span class="champ__label">Début</span>
+                <input type="time" name="debut" required [(ngModel)]="heureDebut" />
+              </label>
+              <label class="champ">
+                <span class="champ__label">Fin</span>
+                <input type="time" name="fin" required [(ngModel)]="heureFin" />
+              </label>
+            </div>
+
             <label class="champ">
-              <span class="champ__label">Lieu ou mode</span>
-              <select name="lieu" required [(ngModel)]="lieu">
-                <option value="Bibliothèque universitaire">Bibliothèque universitaire</option>
-                <option value="En ligne (WhatsApp)">En ligne (WhatsApp)</option>
+              <span class="champ__label">Mode</span>
+              <select name="mode" required [(ngModel)]="mode">
+                <option value="PRESENTIEL">En présentiel</option>
+                <option value="DISTANCIEL">À distance</option>
               </select>
             </label>
 
+            @if (mode === 'PRESENTIEL') {
+              <label class="champ">
+                <span class="champ__label">Lieu</span>
+                <input name="lieu" [(ngModel)]="lieu" placeholder="Ex. Bibliothèque universitaire, salle 2" />
+              </label>
+            }
+
             <label class="champ">
               <span class="champ__label">Message pour le tuteur</span>
-              <textarea name="message" [(ngModel)]="message" placeholder="Ex. Je bloque sur les listes chaînées du TD 2."></textarea>
+              <textarea name="motif" [(ngModel)]="motif" placeholder="Ex. Je bloque sur les listes chaînées du TD 2."></textarea>
             </label>
 
             @if (erreur()) {
               <p class="alert alert--erreur" role="alert">{{ erreur() }}</p>
             }
 
-            <button type="submit" class="btn btn--primary">Envoyer la demande</button>
+            <button type="submit" class="btn btn--primary" [disabled]="enCours()">Envoyer la demande</button>
           </form>
         } @else {
           <div class="empty" style="margin-top: 24px"><p>Ce tuteur n'est pas disponible.</p></div>
@@ -73,45 +82,57 @@ import { UtilisateurService } from '../../core/services/utilisateur.service';
 export class TuteurReserverComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly users = inject(UtilisateurService);
-  private readonly tuteurService = inject(TuteurService);
-  private readonly auth = inject(AuthService);
+  private readonly structure = inject(StructureService);
+  private readonly tutorat = inject(TutoratService);
 
   protected readonly id = Number(this.route.snapshot.paramMap.get('id'));
+  protected readonly tuteur = signal<TuteurProfilResponse | undefined>(undefined);
 
-  protected readonly tuteur = computed(() => {
-    const u = this.users.trouverParId(this.id);
-    return u && u.role === 'tuteur' ? u : undefined;
-  });
-
-  protected readonly dispos = computed(() => this.tuteurService.disponibilitesDe(this.id));
-
-  protected matiere = '';
-  protected dispoId: number | null = null;
+  protected coursId: number | null = null;
   protected date = '';
-  protected lieu: LieuSeance = 'Bibliothèque universitaire';
-  protected message = '';
+  protected heureDebut = '17:00';
+  protected heureFin = '18:00';
+  protected mode: 'PRESENTIEL' | 'DISTANCIEL' = 'PRESENTIEL';
+  protected lieu = '';
+  protected motif = '';
   protected readonly erreur = signal<string | null>(null);
+  protected readonly enCours = signal(false);
 
-  protected valider(): void {
-    const u = this.auth.courant();
-    if (!u) {
-      this.router.navigateByUrl('/connexion');
+  constructor() {
+    void this.tutorat.consulter(this.id).then((t) => this.tuteur.set(t));
+  }
+
+  /** Matières que ce tuteur enseigne, parmi le catalogue. */
+  protected matieres(t: TuteurProfilResponse) {
+    return this.structure.matieres().filter((m) => t.coursIds.includes(m.id));
+  }
+
+  protected async valider(): Promise<void> {
+    if (this.coursId === null || !this.date) {
+      this.erreur.set('Choisis une matière et une date.');
       return;
     }
-    if (!this.matiere || this.dispoId === null || !this.date) {
-      this.erreur.set('Choisis une matière, un créneau et une date.');
+    if (this.heureDebut >= this.heureFin) {
+      this.erreur.set("L'heure de fin doit être après l'heure de début.");
       return;
     }
-    this.tuteurService.reserver({
-      etudiantId: u.id,
+    this.erreur.set(null);
+    this.enCours.set(true);
+    const msg = await this.tutorat.demander({
       tuteurId: this.id,
-      matiere: this.matiere,
-      disponibiliteId: this.dispoId,
+      coursId: this.coursId,
       dateSeance: this.date,
-      lieu: this.lieu,
-      message: this.message.trim(),
+      heureDebut: this.heureDebut,
+      heureFin: this.heureFin,
+      mode: this.mode,
+      lieu: this.mode === 'PRESENTIEL' ? this.lieu.trim() : '',
+      motif: this.motif.trim(),
     });
+    this.enCours.set(false);
+    if (msg) {
+      this.erreur.set(msg);
+      return;
+    }
     this.router.navigateByUrl('/mes-seances');
   }
 }

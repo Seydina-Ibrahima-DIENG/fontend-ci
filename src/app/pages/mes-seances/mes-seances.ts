@@ -2,16 +2,16 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { Seance, StatutSeance } from '../../core/models/models';
-import { AuthService } from '../../core/services/auth.service';
-import { TuteurService } from '../../core/services/tuteur.service';
-import { UtilisateurService } from '../../core/services/utilisateur.service';
+import { SeanceResponse, StatutSeanceApi } from '../../core/api/api';
+import { StructureService } from '../../core/services/structure.service';
+import { TutoratService } from '../../core/services/tutorat.service';
 
-const LIBELLES: Record<StatutSeance, string> = {
-  en_attente: 'En attente',
-  confirmee: 'Confirmée',
-  terminee: 'Terminée',
-  annulee: 'Annulée',
+const LIBELLES: Record<StatutSeanceApi, string> = {
+  EN_ATTENTE: 'En attente',
+  CONFIRMEE: 'Confirmée',
+  REFUSEE: 'Refusée',
+  ANNULEE: 'Annulée',
+  TERMINEE: 'Terminée',
 };
 
 @Component({
@@ -23,6 +23,8 @@ const LIBELLES: Record<StatutSeance, string> = {
         <p class="page__eyebrow">Mon espace</p>
         <h1 class="page__title">Mes <span class="accent">séances</span></h1>
         <p class="page__lead">Suis tes demandes de tutorat, leur statut et ton historique.</p>
+
+        @if (erreur()) { <p class="alert alert--erreur" role="alert">{{ erreur() }}</p> }
 
         <div class="tabs" role="tablist">
           <button type="button" role="tab" class="tab" [class.tab--actif]="onglet() === 'venir'" (click)="onglet.set('venir')">À venir</button>
@@ -41,18 +43,18 @@ const LIBELLES: Record<StatutSeance, string> = {
               <li class="card seance">
                 <div class="seance__infos">
                   <div class="row" style="margin-bottom: 8px">
-                    <span class="badge" [class.badge--attente]="s.statut === 'en_attente'" [class.badge--danger]="s.statut === 'annulee'" [class.badge--neutre]="s.statut === 'terminee'">
+                    <span class="badge" [class.badge--attente]="s.statut === 'EN_ATTENTE'" [class.badge--danger]="s.statut === 'ANNULEE' || s.statut === 'REFUSEE'" [class.badge--neutre]="s.statut === 'TERMINEE'">
                       {{ libelle(s.statut) }}
                     </span>
                   </div>
-                  <h2 class="seance__titre">{{ s.matiere }} avec {{ nomTuteur(s.tuteurId) }}</h2>
-                  <p class="muted">{{ s.dateSeance | date:'dd/MM/yyyy' }} · {{ dispoLabel(s) }} · {{ s.lieu }}</p>
-                  @if (s.message) { <p class="muted message">« {{ s.message }} »</p> }
-                  @if (s.avis) { <p class="avis">Ton avis : ★ {{ s.avis.note }}/5 — {{ s.avis.commentaire }}</p> }
+                  <h2 class="seance__titre">{{ matiere(s.coursId) }} avec le tuteur n°{{ s.tuteurId }}</h2>
+                  <p class="muted">{{ s.dateSeance | date:'dd/MM/yyyy' }} · {{ s.heureDebut.slice(0, 5) }}–{{ s.heureFin.slice(0, 5) }} · {{ s.mode === 'DISTANCIEL' ? 'À distance' : (s.lieu ?? 'Présentiel') }}</p>
+                  @if (s.motif) { <p class="muted message">« {{ s.motif }} »</p> }
+                  @if (s.motifDecision) { <p class="muted">Réponse du tuteur : {{ s.motifDecision }}</p> }
                 </div>
 
                 <div class="seance__actions">
-                  @if (s.statut === 'terminee' && !s.avis) {
+                  @if (s.statut === 'TERMINEE') {
                     @if (noteOuverte() !== s.id) {
                       <button type="button" class="btn btn--primary btn--small" (click)="noteOuverte.set(s.id)">Noter le tuteur</button>
                     } @else {
@@ -72,7 +74,7 @@ const LIBELLES: Record<StatutSeance, string> = {
                     }
                   }
 
-                  @if (s.statut === 'en_attente' || s.statut === 'confirmee') {
+                  @if (s.statut === 'EN_ATTENTE' || s.statut === 'CONFIRMEE') {
                     <button type="button" class="btn btn--danger btn--small" (click)="annuler(s.id)">Annuler</button>
                   }
                 </div>
@@ -90,51 +92,63 @@ const LIBELLES: Record<StatutSeance, string> = {
     .seance__titre { margin: 0 0 6px; font-family: var(--font-display); font-size: 19px; }
     .seance__actions { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
     .message { font-style: italic; }
-    .avis { margin: 8px 0 0; font-size: 14px; color: var(--green-900); }
     .note-form { display: grid; gap: 10px; min-width: 240px; }
     @media (max-width: 640px) { .seance__actions { align-items: stretch; width: 100%; } }
   `,
 })
 export class MesSeancesComponent {
-  private readonly auth = inject(AuthService);
-  private readonly tuteurService = inject(TuteurService);
-  private readonly users = inject(UtilisateurService);
+  private readonly tutorat = inject(TutoratService);
+  private readonly structure = inject(StructureService);
 
   protected readonly onglet = signal<'venir' | 'historique'>('venir');
   protected readonly noteOuverte = signal<number | null>(null);
+  protected readonly erreur = signal<string | null>(null);
   protected note = 5;
   protected commentaire = '';
 
-  protected readonly liste = computed(() => {
-    const u = this.auth.courant();
-    if (!u) return [];
-    const mes = this.tuteurService.seances().filter((s) => s.etudiantId === u.id);
-    const filtrees = mes.filter((s) =>
-      this.onglet() === 'venir' ? s.statut === 'en_attente' || s.statut === 'confirmee' : s.statut === 'terminee' || s.statut === 'annulee',
-    );
-    return filtrees.sort((a, b) => b.dateSeance.localeCompare(a.dateSeance));
-  });
+  private readonly seances = signal<SeanceResponse[]>([]);
 
-  protected libelle(statut: StatutSeance): string {
+  protected readonly liste = computed(() =>
+    this.seances()
+      .filter((s) =>
+        this.onglet() === 'venir'
+          ? s.statut === 'EN_ATTENTE' || s.statut === 'CONFIRMEE'
+          : s.statut === 'TERMINEE' || s.statut === 'ANNULEE' || s.statut === 'REFUSEE',
+      )
+      .sort((a, b) => b.dateSeance.localeCompare(a.dateSeance)),
+  );
+
+  constructor() {
+    void this.charger();
+  }
+
+  protected libelle(statut: StatutSeanceApi): string {
     return LIBELLES[statut];
   }
 
-  protected nomTuteur(id: number): string {
-    return this.users.trouverParId(id)?.nom ?? 'tuteur';
+  protected matiere(coursId: number): string {
+    return this.structure.matieres().find((m) => m.id === coursId)?.nom ?? 'Matière';
   }
 
-  protected dispoLabel(s: Seance): string {
-    const d = this.tuteurService.disponibilites().find((x) => x.id === s.disponibiliteId);
-    return d ? `${d.jour} ${d.debut}–${d.fin}` : '';
-  }
-
-  protected noter(seanceId: number): void {
-    this.tuteurService.noter(seanceId, { note: Number(this.note), commentaire: this.commentaire.trim() });
+  protected async noter(seanceId: number): Promise<void> {
+    this.erreur.set(null);
+    const msg = await this.tutorat.deposerAvis(seanceId, Number(this.note), this.commentaire.trim());
+    if (msg) {
+      this.erreur.set(msg);
+      return;
+    }
     this.noteOuverte.set(null);
     this.commentaire = '';
   }
 
-  protected annuler(seanceId: number): void {
-    this.tuteurService.annuler(seanceId);
+  protected async annuler(seanceId: number): Promise<void> {
+    this.erreur.set(null);
+    const msg = await this.tutorat.annuler(seanceId);
+    if (msg) this.erreur.set(msg);
+    await this.charger();
+  }
+
+  private async charger(): Promise<void> {
+    this.seances.set(await this.tutorat.seancesEtudiant());
   }
 }

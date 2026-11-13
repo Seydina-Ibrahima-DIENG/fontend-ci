@@ -1,15 +1,15 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
-import { JOURS, Seance } from '../../core/models/models';
+import { AvisResumeResponse, DisponibiliteResponse, SeanceResponse, TuteurProfilResponse } from '../../core/api/api';
+import { JOURS } from '../../core/models/models';
 import { AuthService } from '../../core/services/auth.service';
-import { TuteurService } from '../../core/services/tuteur.service';
-import { UtilisateurService } from '../../core/services/utilisateur.service';
+import { StructureService } from '../../core/services/structure.service';
+import { JOURS_API, TutoratService } from '../../core/services/tutorat.service';
 
 @Component({
   selector: 'app-espace-tuteur',
-  imports: [DatePipe, FormsModule, RouterLink],
+  imports: [DatePipe, FormsModule],
   template: `
     <section class="page">
       <div class="page__inner">
@@ -17,10 +17,12 @@ import { UtilisateurService } from '../../core/services/utilisateur.service';
         <h1 class="page__title">Bonjour <span class="accent">{{ prenom() }}</span></h1>
         <p class="page__lead">Gère tes disponibilités et réponds aux demandes des étudiants.</p>
 
+        @if (erreur()) { <p class="alert alert--erreur" role="alert">{{ erreur() }}</p> }
+
         <div class="grid-3" style="margin-bottom: 32px">
           <div class="stat"><div class="stat__valeur">{{ demandes().length }}</div><div class="stat__label">Demandes en attente</div></div>
           <div class="stat"><div class="stat__valeur">{{ confirmees().length }}</div><div class="stat__label">Séances confirmées</div></div>
-          <div class="stat"><div class="stat__valeur">{{ moyenne() || '—' }}</div><div class="stat__label">Note moyenne</div></div>
+          <div class="stat"><div class="stat__valeur">{{ moyenne() }}</div><div class="stat__label">Note moyenne</div></div>
         </div>
 
         <div class="tabs" role="tablist">
@@ -37,21 +39,17 @@ import { UtilisateurService } from '../../core/services/utilisateur.service';
               @for (s of demandes(); track s.id) {
                 <li class="card ligne">
                   <div class="ligne__infos">
-                    <h2 class="titre">{{ s.matiere }} · {{ nomEtudiant(s.etudiantId) }}</h2>
-                    <p class="muted">{{ s.dateSeance | date:'dd/MM/yyyy' }} · {{ dispoLabel(s.disponibiliteId) }} · {{ s.lieu }}</p>
-                    @if (s.message) { <p class="muted message">« {{ s.message }} »</p> }
+                    <h2 class="titre">{{ matiere(s.coursId) }} · étudiant n°{{ s.etudiantId }}</h2>
+                    <p class="muted">{{ s.dateSeance | date:'dd/MM/yyyy' }} · {{ s.heureDebut.slice(0, 5) }}–{{ s.heureFin.slice(0, 5) }} · {{ s.mode === 'DISTANCIEL' ? 'À distance' : (s.lieu ?? 'Présentiel') }}</p>
+                    @if (s.motif) { <p class="muted message">« {{ s.motif }} »</p> }
                   </div>
                   <div class="row">
-                    <button type="button" class="btn btn--primary btn--small" (click)="repondre(s.id, 'accepter')">Accepter</button>
-                    <button type="button" class="btn btn--danger btn--small" (click)="repondre(s.id, 'refuser')">Refuser</button>
-                    @if (reportId() !== s.id) {
-                      <button type="button" class="btn btn--ghost btn--small" (click)="reportId.set(s.id)">Reporter</button>
+                    <button type="button" class="btn btn--primary btn--small" (click)="accepter(s.id)">Accepter</button>
+                    @if (refusId() !== s.id) {
+                      <button type="button" class="btn btn--danger btn--small" (click)="refusId.set(s.id)">Refuser</button>
                     } @else {
-                      <select [(ngModel)]="nouvelleDispo" name="report-{{ s.id }}" aria-label="Nouveau créneau">
-                        <option [ngValue]="null">Choisir un créneau</option>
-                        @for (d of mesDispos(); track d.id) { <option [ngValue]="d.id">{{ d.jour }} {{ d.debut }}</option> }
-                      </select>
-                      <button type="button" class="btn btn--ghost btn--small" [disabled]="!nouvelleDispo" (click)="reporter(s.id)">Confirmer</button>
+                      <input name="motif-{{ s.id }}" placeholder="Motif (facultatif)" [(ngModel)]="motifRefus" />
+                      <button type="button" class="btn btn--danger btn--small" (click)="refuser(s.id)">Confirmer</button>
                     }
                   </div>
                 </li>
@@ -68,10 +66,13 @@ import { UtilisateurService } from '../../core/services/utilisateur.service';
               @for (s of confirmees(); track s.id) {
                 <li class="card ligne">
                   <div class="ligne__infos">
-                    <h2 class="titre">{{ s.matiere }} · {{ nomEtudiant(s.etudiantId) }}</h2>
-                    <p class="muted">{{ s.dateSeance | date:'dd/MM/yyyy' }} · {{ dispoLabel(s.disponibiliteId) }} · {{ s.lieu }}</p>
+                    <h2 class="titre">{{ matiere(s.coursId) }} · étudiant n°{{ s.etudiantId }}</h2>
+                    <p class="muted">{{ s.dateSeance | date:'dd/MM/yyyy' }} · {{ s.heureDebut.slice(0, 5) }}–{{ s.heureFin.slice(0, 5) }} · {{ s.mode === 'DISTANCIEL' ? 'À distance' : (s.lieu ?? 'Présentiel') }}</p>
                   </div>
-                  <button type="button" class="btn btn--primary btn--small" (click)="terminer(s.id)">Marquer terminée</button>
+                  <div class="row">
+                    <button type="button" class="btn btn--primary btn--small" (click)="terminer(s.id)">Marquer terminée</button>
+                    <button type="button" class="btn btn--ghost btn--small" (click)="annuler(s.id)">Annuler</button>
+                  </div>
                 </li>
               }
             </ul>
@@ -82,13 +83,13 @@ import { UtilisateurService } from '../../core/services/utilisateur.service';
           <div class="grid-2">
             <div class="card">
               <h2 class="h2">Mes créneaux</h2>
-              @if (mesDispos().length === 0) {
+              @if (dispos().length === 0) {
                 <p class="muted">Aucun créneau. Ajoute tes disponibilités pour recevoir des demandes.</p>
               } @else {
                 <ul class="dispos">
-                  @for (d of mesDispos(); track d.id) {
+                  @for (d of dispos(); track d.id) {
                     <li>
-                      <span>{{ d.jour }} · {{ d.debut }} – {{ d.fin }}</span>
+                      <span>{{ libelleJour(d.jour) }} · {{ d.heureDebut.slice(0, 5) }} – {{ d.heureFin.slice(0, 5) }}</span>
                       <button type="button" class="link-button" (click)="supprimerDispo(d.id)">Supprimer</button>
                     </li>
                   }
@@ -114,13 +115,11 @@ import { UtilisateurService } from '../../core/services/utilisateur.service';
                   <input type="time" name="fin" [(ngModel)]="fin" />
                 </label>
               </div>
-              @if (erreur()) { <p class="alert alert--erreur">{{ erreur() }}</p> }
+              @if (erreurDispo()) { <p class="alert alert--erreur">{{ erreurDispo() }}</p> }
               <button type="submit" class="btn btn--primary">Ajouter</button>
             </form>
           </div>
         }
-
-        <p style="margin-top: 32px"><a class="link-button" routerLink="/ressources/depot">Déposer une ressource →</a></p>
       </div>
     </section>
   `,
@@ -139,74 +138,100 @@ import { UtilisateurService } from '../../core/services/utilisateur.service';
 })
 export class EspaceTuteurComponent {
   private readonly auth = inject(AuthService);
-  private readonly tuteurService = inject(TuteurService);
-  private readonly users = inject(UtilisateurService);
+  private readonly tutorat = inject(TutoratService);
+  private readonly structure = inject(StructureService);
 
   protected readonly jours = JOURS;
   protected readonly onglet = signal<'demandes' | 'seances' | 'dispos'>('demandes');
-  protected readonly reportId = signal<number | null>(null);
-  protected nouvelleDispo: number | null = null;
+  protected readonly erreur = signal<string | null>(null);
+  protected readonly erreurDispo = signal<string | null>(null);
+
+  protected readonly refusId = signal<number | null>(null);
+  protected motifRefus = '';
 
   protected jour = JOURS[0];
   protected debut = '17:00';
   protected fin = '18:00';
-  protected readonly erreur = signal<string | null>(null);
 
-  protected readonly prenom = computed(() => this.auth.courant()?.nom.split(' ')[0] ?? '');
+  protected readonly prenom = computed(() => this.auth.courant()?.prenom ?? '');
 
-  protected readonly mesDispos = computed(() => {
-    const id = this.auth.courant()?.id ?? -1;
-    return this.tuteurService.disponibilitesDe(id);
-  });
+  private readonly seances = signal<SeanceResponse[]>([]);
+  protected readonly dispos = signal<DisponibiliteResponse[]>([]);
+  private readonly profil = signal<TuteurProfilResponse | null>(null);
+  private readonly resume = signal<AvisResumeResponse | null>(null);
 
-  protected readonly demandes = computed(() => this.mesSeances().filter((s) => s.statut === 'en_attente'));
-  protected readonly confirmees = computed(() => this.mesSeances().filter((s) => s.statut === 'confirmee'));
-
+  protected readonly demandes = computed(() => this.seances().filter((s) => s.statut === 'EN_ATTENTE'));
+  protected readonly confirmees = computed(() => this.seances().filter((s) => s.statut === 'CONFIRMEE'));
   protected readonly moyenne = computed(() => {
-    const u = this.auth.courant();
-    return u ? this.users.noteMoyenne(this.users.trouverParId(u.id)!) : 0;
+    const n = this.resume()?.noteMoyenne;
+    return n ? Math.round(n * 10) / 10 : '—';
   });
 
-  private mesSeances(): Seance[] {
-    const id = this.auth.courant()?.id ?? -1;
-    return this.tuteurService.seances().filter((s) => s.tuteurId === id);
+  constructor() {
+    void this.charger();
   }
 
-  protected nomEtudiant(id: number): string {
-    return this.users.trouverParId(id)?.nom ?? 'Étudiant';
+  protected matiere(coursId: number): string {
+    return this.structure.matieres().find((m) => m.id === coursId)?.nom ?? 'Matière';
   }
 
-  protected dispoLabel(id: number): string {
-    const d = this.tuteurService.disponibilites().find((x) => x.id === id);
-    return d ? `${d.jour} ${d.debut}–${d.fin}` : '';
+  protected libelleJour(jourApi: string): string {
+    const entree = Object.entries(JOURS_API).find(([, v]) => v === jourApi);
+    return entree ? entree[0] : jourApi;
   }
 
-  protected repondre(id: number, action: 'accepter' | 'refuser'): void {
-    this.tuteurService.repondre(id, action);
+  protected async accepter(id: number): Promise<void> {
+    await this.executer(() => this.tutorat.accepter(id));
   }
 
-  protected reporter(id: number): void {
-    this.tuteurService.repondre(id, 'reporter', this.nouvelleDispo ?? undefined);
-    this.reportId.set(null);
-    this.nouvelleDispo = null;
+  protected async refuser(id: number): Promise<void> {
+    const motif = this.motifRefus.trim();
+    this.refusId.set(null);
+    this.motifRefus = '';
+    await this.executer(() => this.tutorat.refuser(id, motif));
   }
 
-  protected terminer(id: number): void {
-    this.tuteurService.terminer(id);
+  protected async terminer(id: number): Promise<void> {
+    await this.executer(() => this.tutorat.terminer(id));
   }
 
-  protected ajouterDispo(): void {
-    const u = this.auth.courant();
-    if (!u) return;
+  protected async annuler(id: number): Promise<void> {
+    await this.executer(() => this.tutorat.annuler(id));
+  }
+
+  protected async ajouterDispo(): Promise<void> {
     if (!this.debut || !this.fin || this.debut >= this.fin) {
-      this.erreur.set("L'heure de fin doit être après l'heure de début.");
+      this.erreurDispo.set("L'heure de fin doit être après l'heure de début.");
       return;
     }
-    this.erreur.set(null);
-    this.tuteurService.ajouterDisponibilite(u.id, this.jour, this.debut, this.fin);
+    this.erreurDispo.set(null);
+    const msg = await this.tutorat.ajouterDisponibilite(this.jour, this.debut, this.fin);
+    if (msg) this.erreurDispo.set(msg);
+    else this.dispos.set(await this.tutorat.disponibilites());
   }
 
-  protected supprimerDispo(id: number): void {
-    this.tuteurService.supprimerDisponibilite(id);
+  protected async supprimerDispo(id: number): Promise<void> {
+    const msg = await this.tutorat.supprimerDisponibilite(id);
+    if (msg) this.erreur.set(msg);
+    this.dispos.set(await this.tutorat.disponibilites());
+  }
+
+  private async executer(action: () => Promise<string | null>): Promise<void> {
+    this.erreur.set(null);
+    const msg = await action();
+    if (msg) this.erreur.set(msg);
+    await this.charger();
+  }
+
+  private async charger(): Promise<void> {
+    const [seances, dispos, profil] = await Promise.all([
+      this.tutorat.seancesTuteur(),
+      this.tutorat.disponibilites(),
+      this.tutorat.monProfil(),
+    ]);
+    this.seances.set(seances);
+    this.dispos.set(dispos);
+    this.profil.set(profil);
+    this.resume.set(profil ? (await this.tutorat.resumeAvis(profil.id)) ?? null : null);
   }
 }

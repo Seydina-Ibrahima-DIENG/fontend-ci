@@ -1,7 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-mot-de-passe-oublie',
@@ -11,11 +10,11 @@ import { AuthService } from '../../core/services/auth.service';
       <div class="page__inner">
         <p class="page__eyebrow">Compte</p>
         <h1 class="page__title">Mot de passe oublié</h1>
-        <p class="page__lead">Indique ton email : si un compte existe, tu recevras un lien pour choisir un nouveau mot de passe.</p>
+        <p class="page__lead">La réinitialisation par email n'est pas encore disponible.</p>
 
-        @if (envoye()) {
-          <p class="alert alert--succes" role="status">
-            Si un compte existe avec cet email, un lien de réinitialisation vient d'être envoyé.
+        @if (indisponible()) {
+          <p class="alert alert--info" role="status">
+            Pour récupérer ton accès, contacte l'administration de la plateforme.
           </p>
           <p class="pied"><a class="link-button" routerLink="/connexion">Retour à la connexion</a></p>
         } @else {
@@ -24,7 +23,7 @@ import { AuthService } from '../../core/services/auth.service';
               <span class="champ__label">Email</span>
               <input type="email" name="email" required [(ngModel)]="email" />
             </label>
-            <button type="submit" class="btn btn--primary">Envoyer le lien</button>
+            <button type="submit" class="btn btn--primary">Continuer</button>
           </form>
         }
       </div>
@@ -36,14 +35,11 @@ import { AuthService } from '../../core/services/auth.service';
   `,
 })
 export class MotDePasseOublieComponent {
-  private readonly auth = inject(AuthService);
-
   protected email = '';
-  protected readonly envoye = signal(false);
+  protected readonly indisponible = signal(false);
 
   protected envoyer(): void {
-    // Simulation : le backend enverra réellement l'email (F1.5).
-    this.auth.demanderReinitialisation(this.email);
-    this.envoye.set(true);
+    // Pas encore de route backend pour la réinitialisation (F1.5).
+    this.indisponible.set(true);
   }
 }

@@ -2,7 +2,6 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
-import { Role } from '../../core/models/models';
 
 @Component({
   selector: 'app-connexion',
@@ -33,18 +32,8 @@ import { Role } from '../../core/models/models';
             <p class="alert alert--erreur" role="alert">{{ erreur() }}</p>
           }
 
-          <button type="submit" class="btn btn--primary">Se connecter</button>
+          <button type="submit" class="btn btn--primary" [disabled]="enCours()">Se connecter</button>
         </form>
-
-        <div class="card card--muted demo">
-          <p class="demo__titre">Comptes de démonstration</p>
-          <p class="muted">Connexion rapide pour tester chaque espace (données mockées).</p>
-          <div class="row">
-            <button type="button" class="btn btn--ghost btn--small" (click)="demo('etudiant')">Étudiant</button>
-            <button type="button" class="btn btn--ghost btn--small" (click)="demo('tuteur')">Tuteur</button>
-            <button type="button" class="btn btn--ghost btn--small" (click)="demo('admin')">Admin</button>
-          </div>
-        </div>
 
         <p class="pied">Pas encore de compte ? <a class="link-button" routerLink="/inscription">Créer un compte</a></p>
       </div>
@@ -52,8 +41,6 @@ import { Role } from '../../core/models/models';
   `,
   styles: `
     .form { margin-bottom: 24px; }
-    .demo { display: grid; gap: 10px; }
-    .demo__titre { margin: 0; font-weight: 700; color: var(--green-900); }
     .pied { text-align: center; color: var(--text-600); }
   `,
 })
@@ -64,22 +51,20 @@ export class ConnexionComponent {
   protected email = '';
   protected motDePasse = '';
   protected readonly erreur = signal<string | null>(null);
+  protected readonly enCours = signal(false);
 
-  protected valider(): void {
-    const msg = this.auth.connecter(this.email, this.motDePasse);
+  protected async valider(): Promise<void> {
+    this.enCours.set(true);
+    const msg = await this.auth.connecter(this.email, this.motDePasse);
+    this.enCours.set(false);
     if (msg) {
       this.erreur.set(msg);
       return;
     }
-    this.allerVersEspace();
-  }
-
-  protected demo(role: Role): void {
-    this.auth.connecterDemo(role);
-    this.allerVersEspace();
-  }
-
-  private allerVersEspace(): void {
+    if (this.auth.premiereConnexion()) {
+      this.router.navigateByUrl('/premiere-connexion');
+      return;
+    }
     this.router.navigateByUrl(this.auth.role() === 'admin' ? '/admin' : '/mes-seances');
   }
 }

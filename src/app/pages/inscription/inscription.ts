@@ -1,10 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
+import { InscriptionInstitutionnelleResponse } from '../../core/api/api';
 import { AuthService } from '../../core/services/auth.service';
-import { NIVEAUX } from '../../core/models/models';
-import { StructureService } from '../../core/services/structure.service';
 
+/**
+ * Inscription institutionnelle : l'étudiant (ou l'enseignant) s'identifie avec son matricule
+ * et son email institutionnels. Un mot de passe temporaire est alors généré.
+ */
 @Component({
   selector: 'app-inscription',
   imports: [FormsModule, RouterLink],
@@ -12,102 +15,64 @@ import { StructureService } from '../../core/services/structure.service';
     <section class="page page--narrow">
       <div class="page__inner">
         <p class="page__eyebrow">Compte</p>
-        <h1 class="page__title">Créer un compte</h1>
-        <p class="page__lead">Pour les étudiants de l'UADB. Ton filière et ton niveau permettent de te montrer les bonnes ressources.</p>
+        <h1 class="page__title">Activer mon compte</h1>
+        <p class="page__lead">
+          Les comptes sont réservés aux membres de l'UADB. Renseigne ton matricule et ton email institutionnel.
+        </p>
 
-        <form class="card form" (ngSubmit)="valider()">
-          <label class="champ">
-            <span class="champ__label">Nom complet</span>
-            <input name="nom" required [(ngModel)]="nom" />
-          </label>
+        @if (compte(); as c) {
+          <div class="card">
+            <p class="alert alert--succes" role="status">{{ c.message }}</p>
+            <p style="margin-top: 16px">Bonjour {{ c.prenom }} {{ c.nom }}. Ton mot de passe temporaire :</p>
+            <p class="mot-de-passe"><code>{{ c.motDePasseTemporaire }}</code></p>
+            <p class="muted">Note-le maintenant : il ne sera plus affiché. Tu le remplaceras à ta première connexion.</p>
+            <p style="margin-top: 16px"><a class="btn btn--primary btn--small" routerLink="/connexion">Aller à la connexion</a></p>
+          </div>
+        } @else {
+          <form class="card form" (ngSubmit)="valider()">
+            <label class="champ">
+              <span class="champ__label">Matricule</span>
+              <input name="matricule" required [(ngModel)]="matricule" />
+            </label>
 
-          <label class="champ">
-            <span class="champ__label">Email</span>
-            <input type="email" name="email" required [(ngModel)]="email" />
-          </label>
+            <label class="champ">
+              <span class="champ__label">Email institutionnel</span>
+              <input type="email" name="email" required [(ngModel)]="email" />
+            </label>
 
-          <label class="champ">
-            <span class="champ__label">Mot de passe</span>
-            <input type="password" name="motDePasse" required minlength="8" [(ngModel)]="motDePasse" />
-            <span class="champ__aide">8 caractères minimum.</span>
-          </label>
+            @if (erreur()) {
+              <p class="alert alert--erreur" role="alert">{{ erreur() }}</p>
+            }
 
-          <label class="champ">
-            <span class="champ__label">UFR</span>
-            <select name="ufr" required [(ngModel)]="ufr">
-              @for (u of structure.ufrs(); track u.nom) {
-                <option [value]="u.nom">{{ u.nom }}</option>
-              }
-            </select>
-          </label>
+            <button type="submit" class="btn btn--primary" [disabled]="enCours()">Activer mon compte</button>
+          </form>
+        }
 
-          <label class="champ">
-            <span class="champ__label">Filière</span>
-            <select name="filiere" required [(ngModel)]="filiere">
-              @for (f of filieresDeLUfr(); track f.nom) {
-                <option [value]="f.nom">{{ f.nom }}</option>
-              }
-            </select>
-          </label>
-
-          <label class="champ">
-            <span class="champ__label">Niveau</span>
-            <select name="niveau" required [(ngModel)]="niveau">
-              @for (n of niveaux; track n) {
-                <option [value]="n">{{ n }}</option>
-              }
-            </select>
-          </label>
-
-          @if (erreur()) {
-            <p class="alert alert--erreur" role="alert">{{ erreur() }}</p>
-          }
-
-          <button type="submit" class="btn btn--primary">Créer mon compte</button>
-        </form>
-
-        <p class="pied">Déjà inscrit ? <a class="link-button" routerLink="/connexion">Se connecter</a></p>
+        <p class="pied">Déjà activé ? <a class="link-button" routerLink="/connexion">Se connecter</a></p>
       </div>
     </section>
   `,
   styles: `
     .form { margin-bottom: 24px; }
+    .mot-de-passe { font-size: 20px; margin: 12px 0; }
     .pied { text-align: center; color: var(--text-600); }
   `,
 })
 export class InscriptionComponent {
-  protected readonly structure = inject(StructureService);
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
 
-  protected readonly niveaux = NIVEAUX;
-
-  protected nom = '';
+  protected matricule = '';
   protected email = '';
-  protected motDePasse = '';
-  protected ufr = this.structure.ufrs()[0]?.nom ?? '';
-  protected filiere = '';
-  protected niveau = NIVEAUX[0];
   protected readonly erreur = signal<string | null>(null);
+  protected readonly enCours = signal(false);
+  protected readonly compte = signal<InscriptionInstitutionnelleResponse | null>(null);
 
-  protected filieresDeLUfr() {
-    return this.structure.filieres().filter((f) => f.ufr === this.ufr);
-  }
-
-  protected valider(): void {
-    if (!this.filiere) this.filiere = this.filieresDeLUfr()[0]?.nom ?? '';
-    const msg = this.auth.inscrire({
-      nom: this.nom,
-      email: this.email,
-      motDePasse: this.motDePasse,
-      ufr: this.ufr,
-      filiere: this.filiere,
-      niveau: this.niveau,
-    });
-    if (msg) {
-      this.erreur.set(msg);
-      return;
-    }
-    this.router.navigateByUrl('/mes-seances');
+  protected async valider(): Promise<void> {
+    this.erreur.set(null);
+    this.enCours.set(true);
+    const { erreur, reponse } = await this.auth.inscriptionInstitutionnelle(this.matricule.trim(), this.email.trim());
+    this.enCours.set(false);
+    if (erreur) this.erreur.set(erreur);
+    else this.compte.set(reponse ?? null);
   }
 }

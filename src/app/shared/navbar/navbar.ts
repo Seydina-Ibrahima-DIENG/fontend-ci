@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -19,6 +19,15 @@ export class NavbarComponent {
   protected readonly notifService = inject(NotificationService);
   private readonly router = inject(Router);
 
+  constructor() {
+    // Les notifications suivent la session : chargées à la connexion, vidées à la déconnexion.
+    effect(() => {
+      const u = this.auth.courant();
+      if (u) void this.notifService.charger(u.id);
+      else this.notifService.vider();
+    });
+  }
+
   protected readonly links: NavLink[] = [
     { label: 'Accueil', href: '/' },
     { label: 'Ressources', href: '/ressources' },
@@ -35,8 +44,7 @@ export class NavbarComponent {
   }
 
   protected nonLues(): number {
-    const u = this.auth.courant();
-    return u ? this.notifService.nonLuesPour(u.id) : 0;
+    return this.notifService.nonLues();
   }
 
   protected deconnecter(): void {

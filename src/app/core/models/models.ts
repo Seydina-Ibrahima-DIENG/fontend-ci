@@ -1,110 +1,56 @@
 /* ============================================================
-   Modèles métier — Jangalma (données mockées pour l'instant)
+   Modèles de l'interface. Les données viennent du backend
+   (voir core/api/api.ts).
    ============================================================ */
 
 export type Role = 'etudiant' | 'tuteur' | 'admin';
 
-export type StatutDemandeTuteur = 'aucune' | 'en_attente' | 'validee' | 'refusee';
+export type StatutCompte = 'actif' | 'suspendu' | 'en_attente' | 'inactif';
 
 export interface Utilisateur {
   id: number;
+  /** Nom affiché : « Prénom Nom ». */
   nom: string;
+  prenom: string;
+  /** Nom de famille seul (pour l'édition du profil). */
+  nomFamille: string;
   email: string;
-  motDePasse: string;
+  telephone: string;
   role: Role;
-  ufr: string;
-  filiere: string;
-  niveau: string;
-  statut: 'actif' | 'suspendu';
-  demandeTuteur: StatutDemandeTuteur;
-  /** Matières maîtrisées (tuteurs ou demandeurs). */
-  matieres: string[];
-  description?: string;
-  justificatif?: string;
-  notes: number[];
+  statut: StatutCompte;
 }
 
-export interface Disponibilite {
-  id: number;
-  tuteurId: number;
-  jour: string;
-  debut: string;
-  fin: string;
-}
-
-export type StatutSeance = 'en_attente' | 'confirmee' | 'terminee' | 'annulee';
-
-export type LieuSeance = 'Bibliothèque universitaire' | 'En ligne (WhatsApp)';
-
-export interface Avis {
-  note: number;
-  commentaire: string;
-}
-
-export interface Seance {
-  id: number;
-  etudiantId: number;
-  tuteurId: number;
-  matiere: string;
-  disponibiliteId: number;
-  dateSeance: string;
-  lieu: LieuSeance;
-  message: string;
-  statut: StatutSeance;
-  avis?: Avis;
-}
-
-export interface Reponse {
-  id: number;
-  auteurId: number;
-  texte: string;
-  date: string;
-}
-
-export interface Question {
-  id: number;
-  auteurId: number;
-  matiere: string;
-  titre: string;
-  texte: string;
-  date: string;
-  reponses: Reponse[];
-  meilleureReponseId?: number;
-}
-
-export interface Notification {
-  id: number;
-  userId: number;
-  texte: string;
-  date: string;
-  lue: boolean;
-}
-
-export interface Signalement {
-  id: number;
-  ressourceId: number;
-  motif: string;
-  statut: 'ouvert' | 'traite';
-}
-
-export interface Ufr {
-  nom: string;
-}
-
+/** Filière (academic-service), rattachée à une UFR. */
 export interface Filiere {
+  id: number;
   nom: string;
-  ufr: string;
+  description?: string;
+  ufrId: number;
+  ufrNom: string;
 }
 
+/** UFR (academic-service). */
+export interface Ufr {
+  id: number;
+  nom: string;
+}
+
+/** Niveau (academic-service) : `nom` est le libellé, ex. « Licence 2 ». */
 export interface Niveau {
+  id: number;
+  code: string;
   nom: string;
 }
 
+/** Matière = cours (academic-service), rattaché à une filière et à un niveau. */
 export interface Matiere {
+  id: number;
   nom: string;
   filiere: string;
+  filiereId: number;
   niveau: string;
+  niveauId: number;
+  volumeHoraire: number | null;
 }
 
-export const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-export const NIVEAUX = ['Licence 1', 'Licence 2', 'Licence 3', 'Master 1', 'Master 2'];
+export const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];

@@ -13,11 +13,10 @@ import { RouterLink } from '@angular/router';
 
         <div class="grid-3">
           <div class="card"><h2 class="h2">Partager</h2><p class="muted">Dépose tes cours, TD et corrigés pour aider les promotions suivantes.</p></div>
-          <div class="card"><h2 class="h2">Répondre</h2><p class="muted">Réponds aux questions du forum dans les matières que tu maîtrises.</p></div>
           <div class="card"><h2 class="h2">Accompagner</h2><p class="muted">Deviens tuteur si tu as un niveau d'avance dans une matière.</p></div>
         </div>
 
-        <p style="margin-top: 32px"><a class="btn btn--primary" routerLink="/forum">Aller au forum</a></p>
+        <p style="margin-top: 32px"><a class="btn btn--primary" routerLink="/ressources">Voir les ressources</a></p>
       </div>
     </section>
   `,

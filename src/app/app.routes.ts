@@ -6,13 +6,12 @@ import { RessourceDetailComponent } from './pages/ressource-detail/ressource-det
 import { RessourceDepotComponent } from './pages/ressource-depot/ressource-depot';
 import { ConnexionComponent } from './pages/connexion/connexion';
 import { InscriptionComponent } from './pages/inscription/inscription';
+import { PremiereConnexionComponent } from './pages/premiere-connexion/premiere-connexion';
 import { MotDePasseOublieComponent } from './pages/mot-de-passe-oublie/mot-de-passe-oublie';
 import { TuteursComponent } from './pages/tuteurs/tuteurs';
 import { TuteurProfilComponent } from './pages/tuteur-profil/tuteur-profil';
 import { TuteurReserverComponent } from './pages/tuteur-reserver/tuteur-reserver';
 import { DevenirTuteurComponent } from './pages/devenir-tuteur/devenir-tuteur';
-import { ForumComponent } from './pages/forum/forum';
-import { ForumQuestionComponent } from './pages/forum-question/forum-question';
 import { MesSeancesComponent } from './pages/mes-seances/mes-seances';
 import { EspaceTuteurComponent } from './pages/espace-tuteur/espace-tuteur';
 import { ProfilComponent } from './pages/profil/profil';
@@ -37,6 +36,7 @@ export const routes: Routes = [
   // Authentification
   { path: 'connexion', component: ConnexionComponent, title: 'Connexion — Jangalma' },
   { path: 'inscription', component: InscriptionComponent, title: 'Inscription — Jangalma' },
+  { path: 'premiere-connexion', component: PremiereConnexionComponent, title: 'Première connexion — Jangalma' },
   { path: 'mot-de-passe-oublie', component: MotDePasseOublieComponent, title: 'Mot de passe oublié — Jangalma' },
 
   // Tutorat
@@ -44,10 +44,6 @@ export const routes: Routes = [
   { path: 'tuteur/:id', component: TuteurProfilComponent, title: 'Tuteur — Jangalma' },
   { path: 'tuteur/:id/reserver', component: TuteurReserverComponent, canActivate: [authGuard], title: 'Réserver une séance — Jangalma' },
   { path: 'devenir-tuteur', component: DevenirTuteurComponent, canActivate: [authGuard], title: 'Devenir tuteur — Jangalma' },
-
-  // Forum
-  { path: 'forum', component: ForumComponent, title: 'Forum — Jangalma' },
-  { path: 'forum/:id', component: ForumQuestionComponent, title: 'Question — Jangalma' },
 
   // Espace connecté
   { path: 'mes-seances', component: MesSeancesComponent, canActivate: [authGuard], title: 'Mes séances — Jangalma' },

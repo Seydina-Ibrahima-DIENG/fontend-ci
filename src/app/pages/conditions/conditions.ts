@@ -20,7 +20,7 @@ import { Component } from '@angular/core';
           <p>Tout utilisateur peut signaler une ressource inappropriée ou erronée depuis sa page. L'équipe examine le signalement et peut retirer le contenu.</p>
 
           <h2 class="h2">Comportement</h2>
-          <p>Respect entre étudiants et tuteurs. Les propos abusifs sur le forum peuvent être supprimés par la modération.</p>
+          <p>Respect entre étudiants et tuteurs. Les propos abusifs peuvent être sanctionnés par la modération.</p>
         </div>
       </div>
     </section>

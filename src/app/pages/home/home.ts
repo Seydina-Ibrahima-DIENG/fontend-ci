@@ -28,13 +28,8 @@ export class HomeComponent {
   protected readonly piliers: Pilier[] = [
     {
       titre: 'Ressources pédagogiques',
-      texte: 'Cours, TD, TP, corrigés et sujets d\'examen classés par UFR, filière, niveau et matière.',
+      texte: 'Cours, TD, TP, corrigés et sujets d\'examen classés par filière, niveau et matière.',
       icone: 'book',
-    },
-    {
-      titre: 'Entraide entre étudiants',
-      texte: 'Pose tes questions dans un espace par matière et reçois de l\'aide de camarades plus avancés.',
-      icone: 'users',
     },
     {
       titre: 'Tutorats personnalisés',

@@ -1,183 +1,204 @@
-import { Injectable, computed, signal } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import { API_BASE, PageReponse, RessourceEntity, SignalementResponse, messageErreur } from '../api/api';
 import { Ressource } from '../models/ressource.model';
-import { Signalement } from '../models/models';
+import { StructureService } from './structure.service';
+
+/** Taille demandée pour les listes (catalogue encore petit). */
+const TAILLE_LISTE = 100;
+
+/** Données envoyées pour un dépôt (multipart : le fichier est obligatoire). */
+export interface DepotRessource {
+  titre: string;
+  description: string;
+  type: string;
+  coursId: number;
+  auteurId: number;
+  fichier: File;
+}
 
 /**
- * Service de ressources.
- * Pour l'instant il renvoie des données de démonstration en mémoire.
- * Il sera remplacé par un appel HTTP vers le backend quand il existera.
+ * Bibliothèque de ressources, lue depuis resource-service.
+ * Chaque ressource est enrichie de la matière, filière et niveau de son cours.
  */
 @Injectable({ providedIn: 'root' })
 export class RessourceService {
-  private readonly donnees: Ressource[] = [
-    {
-      id: 1,
-      titre: 'Algorithmique et structures de données — session 1',
-      type: 'sujet',
-      ufr: 'UFR SATIC',
-      filiere: 'Informatique',
-      niveau: 'Licence 2',
-      matiere: 'Algorithmique',
-      annee: 2025,
-      format: 'PDF',
-      tailleKo: 1250,
-      deposePar: 'Enseignant',
-      telechargements: 214,
-    },
-    {
-      id: 2,
-      titre: 'TD 2 : listes chaînées et piles — corrigé',
-      type: 'corrige',
-      ufr: 'UFR SATIC',
-      filiere: 'Informatique',
-      niveau: 'Licence 2',
-      matiere: 'Algorithmique',
-      annee: 2026,
-      format: 'PDF',
-      tailleKo: 640,
-      deposePar: 'Tuteur',
-      telechargements: 97,
-    },
-    {
-      id: 3,
-      titre: 'Cours : complexité algorithmique',
-      type: 'cours',
-      ufr: 'UFR SATIC',
-      filiere: 'Informatique',
-      niveau: 'Licence 2',
-      matiere: 'Algorithmique',
-      annee: 2026,
-      format: 'PDF',
-      tailleKo: 2800,
-      deposePar: 'Tuteur',
-      telechargements: 156,
-    },
-    {
-      id: 4,
-      titre: 'TP 1 : implémenter un tri fusion en Python',
-      type: 'tp',
-      ufr: 'UFR SATIC',
-      filiere: 'Informatique',
-      niveau: 'Licence 2',
-      matiere: 'Algorithmique',
-      annee: 2026,
-      format: 'PDF',
-      tailleKo: 310,
-      deposePar: 'Enseignant',
-      telechargements: 61,
-    },
-    {
-      id: 5,
-      titre: 'Bases de données : requêtes SQL — examen 2024',
-      type: 'sujet',
-      ufr: 'UFR SATIC',
-      filiere: 'Informatique',
-      niveau: 'Licence 3',
-      matiere: 'Bases de données',
-      annee: 2024,
-      format: 'PDF',
-      tailleKo: 980,
-      deposePar: 'Enseignant',
-      telechargements: 133,
-    },
-    {
-      id: 6,
-      titre: 'Analyse 1 : fiche de révision — limites et continuité',
-      type: 'resume',
-      ufr: 'UFR SATIC',
-      filiere: 'Mathématiques',
-      niveau: 'Licence 1',
-      matiere: 'Analyse 1',
-      annee: 2025,
-      format: 'PDF',
-      tailleKo: 420,
-      deposePar: 'Tuteur',
-      telechargements: 88,
-    },
-    {
-      id: 7,
-      titre: 'Réseaux : examen 2025, session 1',
-      type: 'sujet',
-      ufr: 'UFR SATIC',
-      filiere: 'Informatique',
-      niveau: 'Licence 3',
-      matiere: 'Réseaux',
-      annee: 2025,
-      format: 'PDF',
-      tailleKo: 1100,
-      deposePar: 'Enseignant',
-      telechargements: 45,
-    },
-    {
-      id: 8,
-      titre: 'Travaux dirigés : suites numériques',
-      type: 'td',
-      ufr: 'UFR SATIC',
-      filiere: 'Mathématiques',
-      niveau: 'Licence 1',
-      matiere: 'Analyse 1',
-      annee: 2026,
-      format: 'DOCX',
-      tailleKo: 180,
-      deposePar: 'Tuteur',
-      telechargements: 29,
-    },
-  ];
+  private readonly http = inject(HttpClient);
+  private readonly structure = inject(StructureService);
 
-  /** Store réactif des ressources (mock, en mémoire). */
-  readonly ressources = signal<Ressource[]>(this.donnees);
+  /** Données brutes renvoyées par l'API, publiées ou non selon l'appel. */
+  private readonly brutes = signal<RessourceEntity[]>([]);
+  private readonly enAttenteBrutes = signal<RessourceEntity[]>([]);
 
   /** Ressources publiées, visibles par tous. */
-  readonly publiees = computed(() => this.ressources().filter((r) => !r.statut || r.statut === 'publiee'));
+  readonly publiees = computed(() => this.brutes().map((e) => this.versAffichage(e)));
 
-  /** Ressources en attente de validation (F3.3). */
-  readonly enAttente = computed(() => this.ressources().filter((r) => r.statut === 'en_attente'));
+  /** Ressources en attente de validation (administration). */
+  readonly enAttente = computed(() => this.enAttenteBrutes().map((e) => this.versAffichage(e)));
 
-  getRessources(): Observable<Ressource[]> {
-    return of(this.publiees());
+  /** Signalements remontés par les utilisateurs (administration). */
+  readonly signalements = signal<SignalementResponse[]>([]);
+
+  constructor() {
+    void this.charger();
+  }
+
+  /** Recharge la bibliothèque publiée. */
+  async charger(): Promise<void> {
+    try {
+      await this.structure.charger();
+      const page = await firstValueFrom(
+        this.http.get<PageReponse<RessourceEntity>>(`${API_BASE}/ressources`, { params: { size: TAILLE_LISTE } }),
+      );
+      this.brutes.set(page.content);
+    } catch {
+      this.brutes.set([]);
+    }
+  }
+
+  /** Charge la file de validation (rôle administrateur). */
+  async chargerEnAttente(): Promise<void> {
+    try {
+      this.enAttenteBrutes.set(
+        await firstValueFrom(this.http.get<RessourceEntity[]>(`${API_BASE}/ressources/admin/en-attente`)),
+      );
+    } catch {
+      this.enAttenteBrutes.set([]);
+    }
+  }
+
+  /** Charge les signalements (administration). */
+  async chargerSignalements(): Promise<void> {
+    try {
+      this.signalements.set(await firstValueFrom(this.http.get<SignalementResponse[]>(`${API_BASE}/signalements`)));
+    } catch {
+      this.signalements.set([]);
+    }
+  }
+
+  /** Fiche d'une ressource publiée (renvoie undefined si absente ou non publiée). */
+  async obtenir(id: number): Promise<Ressource | undefined> {
+    try {
+      if (this.structure.matieres().length === 0) await this.structure.charger();
+      const e = await firstValueFrom(this.http.get<RessourceEntity>(`${API_BASE}/ressources/${id}`));
+      return this.versAffichage(e);
+    } catch {
+      return undefined;
+    }
   }
 
   trouver(id: number): Ressource | undefined {
-    return this.ressources().find((r) => r.id === id);
+    return this.publiees().find((r) => r.id === id);
   }
 
-  /** Dépôt d'une ressource (F3.1) : elle reste en attente tant qu'elle n'est pas validée. */
-  deposer(data: Omit<Ressource, 'id' | 'telechargements' | 'statut'>): Ressource {
-    const id = Math.max(0, ...this.ressources().map((r) => r.id)) + 1;
-    const r: Ressource = { ...data, id, telechargements: 0, statut: 'en_attente' };
-    this.ressources.update((l) => [r, ...l]);
-    return r;
+  /** Dépôt d'une ressource avec son fichier (F3.1). Elle reste en attente de validation. */
+  async deposer(data: DepotRessource): Promise<string | null> {
+    const corps = new FormData();
+    corps.append('titre', data.titre);
+    if (data.description) corps.append('description', data.description);
+    corps.append('type', data.type);
+    corps.append('coursId', String(data.coursId));
+    corps.append('auteurId', String(data.auteurId));
+    corps.append('fichier', data.fichier, data.fichier.name);
+    try {
+      await firstValueFrom(this.http.post(`${API_BASE}/ressources`, corps));
+      return null;
+    } catch (err) {
+      return messageErreur(err);
+    }
   }
 
-  valider(id: number): void {
-    this.ressources.update((l) => l.map((r) => (r.id === id ? { ...r, statut: 'publiee' } : r)));
+  /** Télécharge le fichier de la ressource (le jeton est envoyé par l'intercepteur). */
+  async telechargerFichier(r: Ressource): Promise<string | null> {
+    try {
+      const blob = await firstValueFrom(
+        this.http.get(`${API_BASE}/ressources/${r.id}/fichier`, { responseType: 'blob' }),
+      );
+      const url = URL.createObjectURL(blob);
+      const lien = document.createElement('a');
+      lien.href = url;
+      lien.download = r.nomFichier ?? `ressource-${r.id}`;
+      lien.click();
+      URL.revokeObjectURL(url);
+      void this.charger();
+      return null;
+    } catch (err) {
+      return messageErreur(err, 'Le fichier est indisponible.');
+    }
   }
 
-  rejeter(id: number): void {
-    this.ressources.update((l) => l.map((r) => (r.id === id ? { ...r, statut: 'rejetee' } : r)));
+  /** Validation par l'administration (F3.3). */
+  async valider(id: number, validateurId: number): Promise<string | null> {
+    return this.action(() =>
+      firstValueFrom(this.http.put(`${API_BASE}/ressources/admin/${id}/valider`, null, { params: { validateurId } })),
+    );
   }
 
-  supprimer(id: number): void {
-    this.ressources.update((l) => l.filter((r) => r.id !== id));
+  async rejeter(id: number, validateurId: number, motif: string): Promise<string | null> {
+    return this.action(() =>
+      firstValueFrom(
+        this.http.put(`${API_BASE}/ressources/admin/${id}/rejeter`, null, { params: { validateurId, motif } }),
+      ),
+    );
   }
 
-  // ---------- Signalements (F3.8, F7.2) ----------
-  readonly signalements = signal<Signalement[]>([
-    { id: 1, ressourceId: 6, motif: 'Le contenu ne correspond pas à la matière indiquée.', statut: 'ouvert' },
-  ]);
-
-  signaler(ressourceId: number, motif: string): void {
-    const id = Math.max(0, ...this.signalements().map((s) => s.id)) + 1;
-    this.signalements.update((l) => [...l, { id, ressourceId, motif, statut: 'ouvert' }]);
+  async supprimer(id: number): Promise<string | null> {
+    return this.action(() => firstValueFrom(this.http.delete(`${API_BASE}/ressources/${id}`)));
   }
 
-  traiterSignalement(id: number): void {
-    this.signalements.update((l) => l.map((s) => (s.id === id ? { ...s, statut: 'traite' } : s)));
+  /** Signalement d'une ressource par un utilisateur connecté (F3.8). */
+  async signaler(ressourceId: number, utilisateurId: number, motif: string, description = ''): Promise<string | null> {
+    try {
+      await firstValueFrom(
+        this.http.post(`${API_BASE}/ressources/${ressourceId}/signalements`, {
+          utilisateurId,
+          motif,
+          description: description || null,
+        }),
+      );
+      return null;
+    } catch (err) {
+      return messageErreur(err);
+    }
   }
 
-  /** Compteur de téléchargements (F3.6). */
-  incrementerTelechargements(id: number): void {
-    this.ressources.update((l) => l.map((r) => (r.id === id ? { ...r, telechargements: r.telechargements + 1 } : r)));
+  /** Traitement d'un signalement par l'administration (F7.2). */
+  async traiterSignalement(id: number, statut: 'TRAITE' | 'REJETE'): Promise<string | null> {
+    return this.action(() =>
+      firstValueFrom(this.http.put(`${API_BASE}/signalements/${id}/statut`, null, { params: { statut } })),
+    );
+  }
+
+  /** Exécute une action d'écriture puis recharge les listes concernées. */
+  private async action(requete: () => Promise<unknown>): Promise<string | null> {
+    try {
+      await requete();
+      await Promise.all([this.charger(), this.chargerEnAttente(), this.chargerSignalements()]);
+      return null;
+    } catch (err) {
+      return messageErreur(err);
+    }
+  }
+
+  private versAffichage(e: RessourceEntity): Ressource {
+    const cours = this.structure.matieres().find((m) => m.id === e.coursId);
+    return {
+      id: e.id,
+      titre: e.titre,
+      type: e.type as Ressource['type'],
+      description: e.description ?? undefined,
+      coursId: e.coursId,
+      matiere: cours?.nom ?? '—',
+      filiere: cours?.filiere ?? '—',
+      niveau: cours?.niveau ?? '—',
+      annee: new Date(e.dateCreation).getFullYear(),
+      auteurId: e.auteurId,
+      dateCreation: e.dateCreation,
+      nomFichier: e.nomFichier,
+      telechargements: e.telechargements,
+      statut: e.statutPublication,
+      motifRejet: e.motifRejet,
+    };
   }
 }

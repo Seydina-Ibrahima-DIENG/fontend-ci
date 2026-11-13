@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { AdminNavComponent } from '../admin-nav/admin-nav';
 import { StructureService } from '../../core/services/structure.service';
 
-/** Structure pédagogique : UFR > filière > niveau > matière (F2.1). */
+/** Structure pédagogique : UFR > filière > niveau > matière (F2.1), branchée sur academic-service. */
 @Component({
   selector: 'app-admin-structure',
   imports: [FormsModule, AdminNavComponent],
@@ -15,15 +15,16 @@ import { StructureService } from '../../core/services/structure.service';
         <h1 class="page__title">Structure <span class="accent">pédagogique</span></h1>
         <p class="page__lead">Ces listes alimentent les filtres, l'arborescence des ressources et le formulaire d'inscription.</p>
 
-        @if (message()) { <p class="alert alert--info" style="margin-bottom: 24px">{{ message() }}</p> }
+        @if (message()) { <p class="alert alert--info" style="margin-bottom: 24px" role="status">{{ message() }}</p> }
+        @if (erreur()) { <p class="alert alert--erreur" style="margin-bottom: 24px" role="alert">{{ erreur() }}</p> }
 
         <div class="grid-2">
           <!-- UFR -->
           <div class="card">
             <h2 class="h2">UFR</h2>
             <ul class="items">
-              @for (u of structure.ufrs(); track u.nom) {
-                <li><span>{{ u.nom }}</span><button type="button" class="link-button link-button--danger" (click)="supprimerUfr(u.nom)">Supprimer</button></li>
+              @for (u of structure.ufrs(); track u.id) {
+                <li><span>{{ u.nom }}</span><button type="button" class="link-button link-button--danger" (click)="supprimerUfr(u.id)">Supprimer</button></li>
               }
             </ul>
             <form class="ajout" (ngSubmit)="ajouterUfr()">
@@ -36,16 +37,17 @@ import { StructureService } from '../../core/services/structure.service';
           <div class="card">
             <h2 class="h2">Filières</h2>
             <ul class="items">
-              @for (f of structure.filieres(); track f.nom) {
-                <li><span>{{ f.nom }} <span class="muted">· {{ f.ufr }}</span></span><button type="button" class="link-button link-button--danger" (click)="supprimerFiliere(f.nom)">Supprimer</button></li>
+              @for (f of structure.filieres(); track f.id) {
+                <li><span>{{ f.nom }} <span class="muted">· {{ f.ufrNom }}</span></span><button type="button" class="link-button link-button--danger" (click)="supprimerFiliere(f.id)">Supprimer</button></li>
               }
             </ul>
             <form class="ajout ajout--multi" (ngSubmit)="ajouterFiliere()">
               <input name="nouvelleFiliere" placeholder="Nouvelle filière" [(ngModel)]="nouvelleFiliere" />
-              <select name="ufrFiliere" [(ngModel)]="ufrFiliere">
-                @for (u of structure.ufrs(); track u.nom) { <option [value]="u.nom">{{ u.nom }}</option> }
+              <select name="ufrFiliere" [(ngModel)]="ufrFiliereId">
+                <option [ngValue]="null" disabled>Choisis une UFR</option>
+                @for (u of structure.ufrs(); track u.id) { <option [ngValue]="u.id">{{ u.nom }}</option> }
               </select>
-              <button type="submit" class="btn btn--primary btn--small" [disabled]="!nouvelleFiliere.trim()">Ajouter</button>
+              <button type="submit" class="btn btn--primary btn--small" [disabled]="!nouvelleFiliere.trim() || ufrFiliereId === null">Ajouter</button>
             </form>
           </div>
 
@@ -53,13 +55,14 @@ import { StructureService } from '../../core/services/structure.service';
           <div class="card">
             <h2 class="h2">Niveaux</h2>
             <ul class="items">
-              @for (n of structure.niveaux(); track n.nom) {
-                <li><span>{{ n.nom }}</span><button type="button" class="link-button link-button--danger" (click)="supprimerNiveau(n.nom)">Supprimer</button></li>
+              @for (n of structure.niveaux(); track n.id) {
+                <li><span>{{ n.nom }} <span class="muted">· {{ n.code }}</span></span><button type="button" class="link-button link-button--danger" (click)="supprimerNiveau(n.id)">Supprimer</button></li>
               }
             </ul>
-            <form class="ajout" (ngSubmit)="ajouterNiveau()">
-              <input name="nouveauNiveau" placeholder="Nouveau niveau" [(ngModel)]="nouveauNiveau" />
-              <button type="submit" class="btn btn--primary btn--small" [disabled]="!nouveauNiveau.trim()">Ajouter</button>
+            <form class="ajout ajout--multi" (ngSubmit)="ajouterNiveau()">
+              <input name="codeNiveau" placeholder="Code (ex. L2)" [(ngModel)]="codeNiveau" />
+              <input name="nouveauNiveau" placeholder="Libellé (ex. Licence 2)" [(ngModel)]="libelleNiveau" />
+              <button type="submit" class="btn btn--primary btn--small" [disabled]="!codeNiveau.trim() || !libelleNiveau.trim()">Ajouter</button>
             </form>
           </div>
 
@@ -67,19 +70,22 @@ import { StructureService } from '../../core/services/structure.service';
           <div class="card">
             <h2 class="h2">Matières</h2>
             <ul class="items">
-              @for (m of structure.matieres(); track m.nom) {
-                <li><span>{{ m.nom }} <span class="muted">· {{ m.filiere }} · {{ m.niveau }}</span></span><button type="button" class="link-button link-button--danger" (click)="supprimerMatiere(m.nom)">Supprimer</button></li>
+              @for (m of structure.matieres(); track m.id) {
+                <li><span>{{ m.nom }} <span class="muted">· {{ m.filiere }} · {{ m.niveau }}</span></span><button type="button" class="link-button link-button--danger" (click)="supprimerMatiere(m.id)">Supprimer</button></li>
               }
             </ul>
             <form class="ajout ajout--multi" (ngSubmit)="ajouterMatiere()">
               <input name="nouvelleMatiere" placeholder="Nouvelle matière" [(ngModel)]="nouvelleMatiere" />
-              <select name="filiereMatiere" [(ngModel)]="filiereMatiere">
-                @for (f of structure.filieres(); track f.nom) { <option [value]="f.nom">{{ f.nom }}</option> }
+              <select name="filiereMatiere" [(ngModel)]="filiereMatiereId">
+                <option [ngValue]="null" disabled>Choisis une filière</option>
+                @for (f of structure.filieres(); track f.id) { <option [ngValue]="f.id">{{ f.nom }}</option> }
               </select>
-              <select name="niveauMatiere" [(ngModel)]="niveauMatiere">
-                @for (n of structure.niveaux(); track n.nom) { <option [value]="n.nom">{{ n.nom }}</option> }
+              <select name="niveauMatiere" [(ngModel)]="niveauMatiereId">
+                <option [ngValue]="null" disabled>Choisis un niveau</option>
+                @for (n of structure.niveaux(); track n.id) { <option [ngValue]="n.id">{{ n.nom }}</option> }
               </select>
-              <button type="submit" class="btn btn--primary btn--small" [disabled]="!nouvelleMatiere.trim()">Ajouter</button>
+              <input name="volume" type="number" min="1" placeholder="Volume horaire" [(ngModel)]="volumeHoraire" />
+              <button type="submit" class="btn btn--primary btn--small" [disabled]="!nouvelleMatiere.trim() || filiereMatiereId === null || niveauMatiereId === null">Ajouter</button>
             </form>
           </div>
         </div>
@@ -98,56 +104,75 @@ import { StructureService } from '../../core/services/structure.service';
 export class AdminStructureComponent {
   protected readonly structure = inject(StructureService);
   protected readonly message = signal<string | null>(null);
+  protected readonly erreur = signal<string | null>(null);
 
   protected nouvelleUfr = '';
   protected nouvelleFiliere = '';
-  protected ufrFiliere = this.structure.ufrs()[0]?.nom ?? '';
-  protected nouveauNiveau = '';
+  protected ufrFiliereId: number | null = null;
+  protected codeNiveau = '';
+  protected libelleNiveau = '';
   protected nouvelleMatiere = '';
-  protected filiereMatiere = this.structure.filieres()[0]?.nom ?? '';
-  protected niveauMatiere = this.structure.niveaux()[0]?.nom ?? '';
+  protected filiereMatiereId: number | null = null;
+  protected niveauMatiereId: number | null = null;
+  protected volumeHoraire = 30;
 
-  protected ajouterUfr(): void {
-    this.structure.ajouterUfr(this.nouvelleUfr.trim());
-    this.nouvelleUfr = '';
-    this.message.set('UFR ajoutée.');
+  protected async ajouterUfr(): Promise<void> {
+    await this.executer(() => this.structure.ajouterUfr(this.nouvelleUfr.trim()), 'UFR ajoutée.', () => (this.nouvelleUfr = ''));
   }
 
-  protected supprimerUfr(nom: string): void {
-    this.structure.supprimerUfr(nom);
-    this.message.set('UFR supprimée.');
+  protected async supprimerUfr(id: number): Promise<void> {
+    await this.executer(() => this.structure.supprimerUfr(id), 'UFR supprimée.');
   }
 
-  protected ajouterFiliere(): void {
-    this.structure.ajouterFiliere(this.nouvelleFiliere.trim(), this.ufrFiliere);
-    this.nouvelleFiliere = '';
-    this.message.set('Filière ajoutée.');
+  protected async ajouterFiliere(): Promise<void> {
+    if (this.ufrFiliereId === null) return;
+    const ufrId = this.ufrFiliereId;
+    await this.executer(() => this.structure.ajouterFiliere(this.nouvelleFiliere.trim(), ufrId), 'Filière ajoutée.', () => (this.nouvelleFiliere = ''));
   }
 
-  protected supprimerFiliere(nom: string): void {
-    this.structure.supprimerFiliere(nom);
-    this.message.set('Filière supprimée.');
+  protected async supprimerFiliere(id: number): Promise<void> {
+    await this.executer(() => this.structure.supprimerFiliere(id), 'Filière supprimée.');
   }
 
-  protected ajouterNiveau(): void {
-    this.structure.ajouterNiveau(this.nouveauNiveau.trim());
-    this.nouveauNiveau = '';
-    this.message.set('Niveau ajouté.');
+  protected async ajouterNiveau(): Promise<void> {
+    await this.executer(
+      () => this.structure.ajouterNiveau(this.codeNiveau.trim(), this.libelleNiveau.trim()),
+      'Niveau ajouté.',
+      () => {
+        this.codeNiveau = '';
+        this.libelleNiveau = '';
+      },
+    );
   }
 
-  protected supprimerNiveau(nom: string): void {
-    this.structure.supprimerNiveau(nom);
-    this.message.set('Niveau supprimé.');
+  protected async supprimerNiveau(id: number): Promise<void> {
+    await this.executer(() => this.structure.supprimerNiveau(id), 'Niveau supprimé.');
   }
 
-  protected ajouterMatiere(): void {
-    this.structure.ajouterMatiere(this.nouvelleMatiere.trim(), this.filiereMatiere, this.niveauMatiere);
-    this.nouvelleMatiere = '';
-    this.message.set('Matière ajoutée.');
+  protected async ajouterMatiere(): Promise<void> {
+    if (this.filiereMatiereId === null || this.niveauMatiereId === null) return;
+    const filiereId = this.filiereMatiereId;
+    const niveauId = this.niveauMatiereId;
+    await this.executer(
+      () => this.structure.ajouterMatiere(this.nouvelleMatiere.trim(), filiereId, niveauId, Number(this.volumeHoraire)),
+      'Matière ajoutée.',
+      () => (this.nouvelleMatiere = ''),
+    );
   }
 
-  protected supprimerMatiere(nom: string): void {
-    this.structure.supprimerMatiere(nom);
-    this.message.set('Matière supprimée.');
+  protected async supprimerMatiere(id: number): Promise<void> {
+    await this.executer(() => this.structure.supprimerMatiere(id), 'Matière supprimée.');
+  }
+
+  private async executer(action: () => Promise<string | null>, succes: string, apres?: () => void): Promise<void> {
+    this.message.set(null);
+    this.erreur.set(null);
+    const msg = await action();
+    if (msg) {
+      this.erreur.set(msg);
+      return;
+    }
+    apres?.();
+    this.message.set(succes);
   }
 }

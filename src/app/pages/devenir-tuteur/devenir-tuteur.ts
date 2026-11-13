@@ -1,38 +1,43 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
+import { CandidatureTuteurResponse } from '../../core/api/api';
+import { CandidatureService } from '../../core/services/candidature.service';
 import { StructureService } from '../../core/services/structure.service';
-import { UtilisateurService } from '../../core/services/utilisateur.service';
 
-/** Demande pour devenir tuteur (F1.6) — validée par l'admin (F1.7). */
+/** Candidature pour devenir tuteur (F1.6), validée par l'administration (F1.7). */
 @Component({
   selector: 'app-devenir-tuteur',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule],
   template: `
     <section class="page page--narrow">
       <div class="page__inner">
         <p class="page__eyebrow">Tutorat</p>
         <h1 class="page__title">Devenir <span class="accent">tuteur</span></h1>
-        <p class="page__lead">Indique les matières que tu maîtrises et joins un justificatif de ton niveau. L'administration valide ta demande.</p>
+        <p class="page__lead">Indique les matières que tu maîtrises et présente-toi. L'administration valide ta candidature.</p>
 
-        @if (statut() === 'validee') {
-          <p class="alert alert--succes">Tu es déjà tuteur. <a class="link-button" routerLink="/espace-tuteur">Ouvrir mon espace tuteur</a></p>
-        } @else if (statut() === 'en_attente' && !modifiable()) {
-          <p class="alert alert--info">Ta demande est en cours de validation par l'administration.</p>
-        } @else if (statut() === 'refusee' && !modifiable()) {
-          <p class="alert alert--erreur">Ta dernière demande a été refusée. Tu peux la corriger et la renvoyer.</p>
-          <button type="button" class="btn btn--ghost btn--small" style="margin-top: 12px" (click)="modifiable.set(true)">Modifier ma demande</button>
+        @if (derniere(); as c) {
+          @if (c.statut === 'APPROUVEE') {
+            <p class="alert alert--succes">
+              Ta candidature a été approuvée. Déconnecte-toi puis reconnecte-toi pour activer ton espace tuteur.
+            </p>
+          } @else if (c.statut === 'EN_ATTENTE') {
+            <p class="alert alert--info">Ta candidature est en cours de validation par l'administration.</p>
+          } @else if (c.statut === 'REFUSEE' && !modifiable()) {
+            <p class="alert alert--erreur">
+              Ta dernière candidature a été refusée{{ c.motifRefus ? " : « " + c.motifRefus + " »" : '' }}.
+            </p>
+            <button type="button" class="btn btn--ghost btn--small" style="margin-top: 12px" (click)="modifiable.set(true)">Renvoyer une candidature</button>
+          }
         }
 
-        @if (statut() === 'aucune' || modifiable() || statut() === 'refusee') {
+        @if (peutEnvoyer()) {
           <form class="card form" (ngSubmit)="envoyer()">
             <fieldset class="champ">
               <legend class="champ__label">Matières maîtrisées</legend>
               <div class="cases">
-                @for (m of structure.matieres(); track m.nom) {
+                @for (m of structure.matieres(); track m.id) {
                   <label class="champ--inline">
-                    <input type="checkbox" [checked]="matieres.includes(m.nom)" (change)="basculer(m.nom)" />
+                    <input type="checkbox" [checked]="coursIds.includes(m.id)" (change)="basculer(m.id)" />
                     {{ m.nom }} <span class="muted">({{ m.niveau }})</span>
                   </label>
                 }
@@ -41,20 +46,19 @@ import { UtilisateurService } from '../../core/services/utilisateur.service';
 
             <label class="champ">
               <span class="champ__label">Présentation</span>
-              <textarea name="description" [(ngModel)]="description" placeholder="Ton approche, ton expérience, tes disponibilités générales…"></textarea>
+              <textarea name="description" required [(ngModel)]="description" placeholder="Ton approche, ton expérience…"></textarea>
             </label>
 
             <label class="champ">
-              <span class="champ__label">Justificatif</span>
-              <input type="file" name="justificatif" accept=".pdf,.jpg,.jpeg,.png" (change)="fichier($event)" />
-              <span class="champ__aide">Relevé de notes ou attestation, PDF ou image.</span>
+              <span class="champ__label">Motivation</span>
+              <textarea name="motivation" required [(ngModel)]="motivation" placeholder="Pourquoi souhaites-tu accompagner d'autres étudiants ?"></textarea>
             </label>
 
             @if (erreur()) {
               <p class="alert alert--erreur" role="alert">{{ erreur() }}</p>
             }
 
-            <button type="submit" class="btn btn--primary" [disabled]="matieres.length === 0">Envoyer ma demande</button>
+            <button type="submit" class="btn btn--primary" [disabled]="coursIds.length === 0 || enCours()">Envoyer ma candidature</button>
           </form>
         }
       </div>
@@ -69,40 +73,50 @@ import { UtilisateurService } from '../../core/services/utilisateur.service';
 })
 export class DevenirTuteurComponent {
   protected readonly structure = inject(StructureService);
-  private readonly auth = inject(AuthService);
-  private readonly users = inject(UtilisateurService);
+  private readonly candidatures = inject(CandidatureService);
 
-  protected readonly statut = computed(() => this.auth.courant() && this.users.trouverParId(this.auth.courant()!.id)?.demandeTuteur || 'aucune');
+  protected readonly derniere = signal<CandidatureTuteurResponse | null>(null);
   protected readonly modifiable = signal(false);
+  protected readonly enCours = signal(false);
 
-  protected matieres: string[] = [];
+  protected coursIds: number[] = [];
   protected description = '';
-  protected justificatif: string | null = null;
+  protected motivation = '';
   protected readonly erreur = signal<string | null>(null);
 
-  protected basculer(nom: string): void {
-    this.matieres = this.matieres.includes(nom) ? this.matieres.filter((m) => m !== nom) : [...this.matieres, nom];
+  constructor() {
+    void this.charger();
   }
 
-  protected fichier(evenement: Event): void {
-    const input = evenement.target as HTMLInputElement;
-    this.justificatif = input.files?.[0]?.name ?? null;
+  /** Le formulaire s'affiche sans candidature en cours, ou pour renvoyer une candidature refusée. */
+  protected peutEnvoyer(): boolean {
+    const c = this.derniere();
+    return !c || (c.statut === 'REFUSEE' && this.modifiable());
   }
 
-  protected envoyer(): void {
-    const u = this.auth.courant();
-    if (!u) return;
-    if (!this.justificatif) {
-      this.erreur.set('Ajoute un justificatif pour finaliser ta demande.');
+  protected basculer(id: number): void {
+    this.coursIds = this.coursIds.includes(id) ? this.coursIds.filter((x) => x !== id) : [...this.coursIds, id];
+  }
+
+  protected async envoyer(): Promise<void> {
+    this.erreur.set(null);
+    this.enCours.set(true);
+    const msg = await this.candidatures.deposer({
+      description: this.description.trim(),
+      motivation: this.motivation.trim(),
+      coursIds: this.coursIds,
+    });
+    this.enCours.set(false);
+    if (msg) {
+      this.erreur.set(msg);
       return;
     }
-    this.users.mettreAJour(u.id, {
-      demandeTuteur: 'en_attente',
-      matieres: this.matieres,
-      description: this.description.trim(),
-      justificatif: this.justificatif,
-    });
     this.modifiable.set(false);
-    this.erreur.set(null);
+    await this.charger();
+  }
+
+  private async charger(): Promise<void> {
+    const liste = await this.candidatures.mesCandidatures();
+    this.derniere.set(liste[0] ?? null);
   }
 }

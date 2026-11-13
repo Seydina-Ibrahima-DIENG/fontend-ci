@@ -1,71 +1,113 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+import {
+  API_BASE,
+  CoursResponse,
+  FiliereResponse,
+  NiveauResponse,
+  PageReponse,
+  UfrResponse,
+  messageErreur,
+} from '../api/api';
 import { Filiere, Matiere, Niveau, Ufr } from '../models/models';
 
+/** Taille demandée pour les listes : le catalogue est petit, une seule page suffit. */
+const TAILLE_LISTE = 100;
+
 /**
- * Structure pédagogique : UFR > filière > niveau > matière (F2.1, F2.2).
- * Données mockées ; l'admin peut ajouter, modifier et supprimer.
+ * Structure pédagogique : UFR > filière > niveau > matière (cours), lue depuis academic-service.
  */
 @Injectable({ providedIn: 'root' })
 export class StructureService {
-  readonly ufrs = signal<Ufr[]>([
-    { nom: 'UFR SATIC' },
-    { nom: 'UFR Sciences Économiques' },
-  ]);
+  private readonly http = inject(HttpClient);
 
-  readonly filieres = signal<Filiere[]>([
-    { nom: 'Informatique', ufr: 'UFR SATIC' },
-    { nom: 'Mathématiques', ufr: 'UFR SATIC' },
-    { nom: 'Statistiques', ufr: 'UFR SATIC' },
-    { nom: 'Gestion', ufr: 'UFR Sciences Économiques' },
-  ]);
+  readonly ufrs = signal<Ufr[]>([]);
+  readonly filieres = signal<Filiere[]>([]);
+  readonly niveaux = signal<Niveau[]>([]);
+  readonly matieres = signal<Matiere[]>([]);
 
-  readonly niveaux = signal<Niveau[]>([
-    { nom: 'Licence 1' },
-    { nom: 'Licence 2' },
-    { nom: 'Licence 3' },
-    { nom: 'Master 1' },
-    { nom: 'Master 2' },
-  ]);
-
-  readonly matieres = signal<Matiere[]>([
-    { nom: 'Algorithmique', filiere: 'Informatique', niveau: 'Licence 2' },
-    { nom: 'Bases de données', filiere: 'Informatique', niveau: 'Licence 3' },
-    { nom: 'Réseaux', filiere: 'Informatique', niveau: 'Licence 3' },
-    { nom: 'Python', filiere: 'Informatique', niveau: 'Licence 2' },
-    { nom: 'Linux', filiere: 'Informatique', niveau: 'Master 1' },
-    { nom: 'Analyse 1', filiere: 'Mathématiques', niveau: 'Licence 1' },
-    { nom: 'Statistiques', filiere: 'Statistiques', niveau: 'Master 1' },
-  ]);
-
-  ajouterUfr(nom: string): void {
-    this.ufrs.update((l) => [...l, { nom }]);
+  constructor() {
+    void this.charger();
   }
 
-  supprimerUfr(nom: string): void {
-    this.ufrs.update((l) => l.filter((u) => u.nom !== nom));
+  /** Recharge UFR, filières, niveaux et matières. Une liste en échec reste vide. */
+  async charger(): Promise<void> {
+    const [ufrs, filieres, niveaux, cours] = await Promise.all([
+      firstValueFrom(this.http.get<UfrResponse[]>(`${API_BASE}/ufrs`)).catch(() => []),
+      firstValueFrom(this.http.get<FiliereResponse[]>(`${API_BASE}/filieres`)).catch(() => []),
+      firstValueFrom(this.http.get<NiveauResponse[]>(`${API_BASE}/niveaux`)).catch(() => []),
+      firstValueFrom(this.http.get<PageReponse<CoursResponse>>(`${API_BASE}/cours`, { params: { size: TAILLE_LISTE } }))
+        .then((p) => p.content)
+        .catch(() => []),
+    ]);
+    this.ufrs.set(ufrs.map((u) => ({ id: u.id, nom: u.nom })));
+    this.filieres.set(
+      filieres.map((f) => ({
+        id: f.id,
+        nom: f.nom,
+        description: f.description ?? undefined,
+        ufrId: f.ufrId,
+        ufrNom: f.ufrNom,
+      })),
+    );
+    this.niveaux.set(niveaux.map((n) => ({ id: n.id, code: n.code, nom: n.libelle })));
+    this.matieres.set(
+      cours.map((c) => ({
+        id: c.id,
+        nom: c.nom,
+        filiere: c.filiereNom,
+        filiereId: c.filiereId,
+        niveau: c.niveauLibelle,
+        niveauId: c.niveauId,
+        volumeHoraire: c.volumeHoraire,
+      })),
+    );
   }
 
-  ajouterFiliere(nom: string, ufr: string): void {
-    this.filieres.update((l) => [...l, { nom, ufr }]);
+  ajouterUfr(nom: string): Promise<string | null> {
+    return this.envoyer(() => firstValueFrom(this.http.post(`${API_BASE}/ufrs`, { nom })));
   }
 
-  supprimerFiliere(nom: string): void {
-    this.filieres.update((l) => l.filter((f) => f.nom !== nom));
+  supprimerUfr(id: number): Promise<string | null> {
+    return this.envoyer(() => firstValueFrom(this.http.delete(`${API_BASE}/ufrs/${id}`)));
   }
 
-  ajouterNiveau(nom: string): void {
-    this.niveaux.update((l) => [...l, { nom }]);
+  ajouterFiliere(nom: string, ufrId: number, description = ''): Promise<string | null> {
+    return this.envoyer(() =>
+      firstValueFrom(this.http.post(`${API_BASE}/filieres`, { nom, ufrId, description: description || null })),
+    );
   }
 
-  supprimerNiveau(nom: string): void {
-    this.niveaux.update((l) => l.filter((n) => n.nom !== nom));
+  supprimerFiliere(id: number): Promise<string | null> {
+    return this.envoyer(() => firstValueFrom(this.http.delete(`${API_BASE}/filieres/${id}`)));
   }
 
-  ajouterMatiere(nom: string, filiere: string, niveau: string): void {
-    this.matieres.update((l) => [...l, { nom, filiere, niveau }]);
+  ajouterNiveau(code: string, libelle: string): Promise<string | null> {
+    return this.envoyer(() => firstValueFrom(this.http.post(`${API_BASE}/niveaux`, { code, libelle })));
   }
 
-  supprimerMatiere(nom: string): void {
-    this.matieres.update((l) => l.filter((m) => m.nom !== nom));
+  supprimerNiveau(id: number): Promise<string | null> {
+    return this.envoyer(() => firstValueFrom(this.http.delete(`${API_BASE}/niveaux/${id}`)));
+  }
+
+  ajouterMatiere(nom: string, filiereId: number, niveauId: number, volumeHoraire: number): Promise<string | null> {
+    return this.envoyer(() =>
+      firstValueFrom(this.http.post(`${API_BASE}/cours`, { nom, filiereId, niveauId, volumeHoraire })),
+    );
+  }
+
+  supprimerMatiere(id: number): Promise<string | null> {
+    return this.envoyer(() => firstValueFrom(this.http.delete(`${API_BASE}/cours/${id}`)));
+  }
+
+  private async envoyer(requete: () => Promise<unknown>): Promise<string | null> {
+    try {
+      await requete();
+      await this.charger();
+      return null;
+    } catch (err) {
+      return messageErreur(err);
+    }
   }
 }

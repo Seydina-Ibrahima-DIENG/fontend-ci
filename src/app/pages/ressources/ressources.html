@@ -16,17 +16,14 @@
     <div class="layout">
       <aside class="arbre card" aria-label="Parcourir par filière">
         <h2 class="arbre__titre">Parcourir</h2>
-        @for (u of arborescence(); track u.nom) {
-          <p class="arbre__ufr">{{ u.nom }}</p>
-          @for (f of u.filieres; track f.nom) {
-            <button type="button" class="arbre__item" [class.arbre__item--actif]="filtreFiliere() === f.nom && !filtreMatiere()" (click)="choisirFiliere(f.nom)">
-              {{ f.nom }}
+        @for (f of arborescence(); track f.nom) {
+          <button type="button" class="arbre__item" [class.arbre__item--actif]="filtreFiliere() === f.nom && !filtreMatiere()" (click)="choisirFiliere(f.nom)">
+            {{ f.nom }}
+          </button>
+          @for (m of f.matieres; track m) {
+            <button type="button" class="arbre__matiere" [class.arbre__item--actif]="filtreMatiere() === m" (click)="choisirMatiere(m)">
+              {{ m }}
             </button>
-            @for (m of f.matieres; track m) {
-              <button type="button" class="arbre__matiere" [class.arbre__item--actif]="filtreMatiere() === m" (click)="choisirMatiere(m)">
-                {{ m }}
-              </button>
-            }
           }
         }
       </aside>
@@ -36,14 +33,6 @@
           <label class="champ champ--recherche">
             <span class="champ__label">Rechercher</span>
             <input type="search" name="recherche" placeholder="Ex. algorithmique, sujet 2025, TD 2…" [ngModel]="recherche()" (ngModelChange)="recherche.set($event)" />
-          </label>
-
-          <label class="champ">
-            <span class="champ__label">UFR</span>
-            <select name="ufr" [ngModel]="filtreUfr()" (ngModelChange)="filtreUfr.set($event); filtreFiliere.set('')">
-              <option value="">Toutes</option>
-              @for (u of ufrs(); track u) { <option [value]="u">{{ u }}</option> }
-            </select>
           </label>
 
           <label class="champ">
@@ -109,8 +98,7 @@
                     <span class="badge badge--neutre">{{ r.niveau }}</span>
                   </div>
                   <h2 class="ressource__titre"><a [routerLink]="['/ressources', r.id]">{{ r.titre }}</a></h2>
-                  <p class="ressource__meta">{{ r.matiere }} · {{ r.filiere }} · {{ r.annee }} · {{ r.format }} · {{ r.tailleKo }} Ko</p>
-                  <p class="ressource__meta">Déposé par {{ r.deposePar }} · {{ r.telechargements }} téléchargement{{ r.telechargements > 1 ? 's' : '' }}</p>
+                  <p class="ressource__meta">{{ r.matiere }} · {{ r.filiere }} · {{ r.annee }}</p>
                 </div>
 
                 <div class="ressource__actions">

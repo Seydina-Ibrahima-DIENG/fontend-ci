@@ -1,7 +1,7 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { LIBELLES_TYPE } from '../../core/models/ressource.model';
+import { LIBELLES_TYPE, Ressource } from '../../core/models/ressource.model';
 import { RessourceService } from '../../core/services/ressource.service';
 import { AuthService } from '../../core/services/auth.service';
 
@@ -13,7 +13,9 @@ import { AuthService } from '../../core/services/auth.service';
       <div class="page__inner">
         <a class="link-button" routerLink="/ressources">← Retour à la bibliothèque</a>
 
-        @if (ressource(); as r) {
+        @if (chargement()) {
+          <p class="muted" style="margin-top: 24px">Chargement…</p>
+        } @else if (ressource(); as r) {
           <div class="detail stack" style="margin-top: 24px">
             <div class="card">
               <div class="row" style="margin-bottom: 12px">
@@ -23,25 +25,23 @@ import { AuthService } from '../../core/services/auth.service';
               </div>
 
               <h1 class="page__title" style="font-size: clamp(26px, 3.4vw, 38px)">{{ r.titre }}</h1>
-              <p class="muted">{{ r.matiere }} · {{ r.ufr }} · {{ r.filiere }}</p>
+              <p class="muted">{{ r.matiere }} · {{ r.filiere }}</p>
 
               @if (r.description) {
                 <p class="description">{{ r.description }}</p>
               }
 
               <dl class="infos">
-                <div><dt>Format</dt><dd>{{ r.format }}</dd></div>
-                <div><dt>Taille</dt><dd>{{ r.tailleKo }} Ko</dd></div>
-                <div><dt>Déposé par</dt><dd>{{ r.deposePar }}</dd></div>
-                <div><dt>Téléchargements</dt><dd>{{ compteur() }}</dd></div>
+                <div><dt>Fichier</dt><dd>{{ r.nomFichier ?? '—' }}</dd></div>
+                <div><dt>Téléchargements</dt><dd>{{ r.telechargements }}</dd></div>
               </dl>
 
               <div class="row">
-                <button type="button" class="btn btn--primary" (click)="telecharger()">Télécharger</button>
+                <button type="button" class="btn btn--primary" (click)="telecharger(r)">Télécharger</button>
               </div>
 
-              @if (messageTelechargement()) {
-                <p class="alert alert--info" style="margin-top: 16px">{{ messageTelechargement() }}</p>
+              @if (message()) {
+                <p class="alert alert--info" style="margin-top: 16px" role="status">{{ message() }}</p>
               }
             </div>
 
@@ -65,6 +65,9 @@ import { AuthService } from '../../core/services/auth.service';
                       <option>Droits d'auteur non respectés</option>
                     </select>
                   </label>
+                  @if (erreurSignalement()) {
+                    <p class="alert alert--erreur" role="alert">{{ erreurSignalement() }}</p>
+                  }
                   <button type="submit" class="btn btn--ghost btn--small" [disabled]="!motif">Envoyer le signalement</button>
                 </form>
               }
@@ -72,7 +75,7 @@ import { AuthService } from '../../core/services/auth.service';
           </div>
         } @else {
           <div class="empty" style="margin-top: 24px">
-            <p>Cette ressource n'existe pas ou n'est pas encore publiée.</p>
+            <p>Cette ressource n'existe pas ou n'est pas encore disponible.</p>
           </div>
         }
       </div>
@@ -92,25 +95,35 @@ export class RessourceDetailComponent {
   protected readonly auth = inject(AuthService);
 
   protected readonly libelles = LIBELLES_TYPE;
-  protected readonly id = Number(this.route.snapshot.paramMap.get('id'));
+  private readonly id = Number(this.route.snapshot.paramMap.get('id'));
 
-  protected readonly ressource = computed(() => {
-    const r = this.service.trouver(this.id);
-    return r && (!r.statut || r.statut === 'publiee') ? r : undefined;
-  });
-
-  protected readonly compteur = computed(() => this.ressource()?.telechargements ?? 0);
-  protected readonly messageTelechargement = signal<string | null>(null);
+  protected readonly chargement = signal(true);
+  protected readonly ressource = signal<Ressource | undefined>(undefined);
+  protected readonly message = signal<string | null>(null);
   protected readonly signale = signal(false);
+  protected readonly erreurSignalement = signal<string | null>(null);
   protected motif = '';
 
-  protected telecharger(): void {
-    this.service.incrementerTelechargements(this.id);
-    this.messageTelechargement.set('Téléchargement lancé. Le fichier réel sera servi par le backend.');
+  constructor() {
+    void this.service.obtenir(this.id).then((r) => {
+      this.ressource.set(r);
+      this.chargement.set(false);
+    });
   }
 
-  protected signaler(): void {
-    this.service.signaler(this.id, this.motif);
-    this.signale.set(true);
+  protected async telecharger(r: Ressource): Promise<void> {
+    this.message.set(null);
+    const erreur = await this.service.telechargerFichier(r);
+    this.message.set(erreur ?? 'Téléchargement lancé.');
+    if (!erreur) this.ressource.update((x) => (x ? { ...x, telechargements: x.telechargements + 1 } : x));
+  }
+
+  protected async signaler(): Promise<void> {
+    const u = this.auth.courant();
+    if (!u) return;
+    this.erreurSignalement.set(null);
+    const erreur = await this.service.signaler(this.id, u.id, this.motif);
+    if (erreur) this.erreurSignalement.set(erreur);
+    else this.signale.set(true);
   }
 }

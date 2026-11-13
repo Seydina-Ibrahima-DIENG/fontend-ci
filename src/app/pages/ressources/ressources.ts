@@ -19,22 +19,18 @@ export class RessourcesComponent {
 
   protected readonly libellesType = LIBELLES_TYPE;
 
-  /** Ressources publiées (store réactif). */
+  /** Ressources chargées depuis le backend. */
   protected readonly toutes = this.service.publiees;
 
   // ---- Filtres (F3.4) ----
   protected readonly recherche = signal('');
-  protected readonly filtreUfr = signal('');
   protected readonly filtreFiliere = signal('');
   protected readonly filtreNiveau = signal('');
   protected readonly filtreMatiere = signal('');
   protected readonly filtreType = signal<TypeRessource | ''>('');
   protected readonly filtreAnnee = signal('');
 
-  protected readonly ufrs = computed(() => this.structure.ufrs().map((u) => u.nom));
-  protected readonly filieres = computed(() =>
-    this.structure.filieres().filter((f) => !this.filtreUfr() || f.ufr === this.filtreUfr()).map((f) => f.nom),
-  );
+  protected readonly filieres = computed(() => this.structure.filieres().map((f) => f.nom));
   protected readonly niveaux = computed(() => this.uniques((r) => r.niveau));
   protected readonly matieres = computed(() => this.uniques((r) => r.matiere));
   protected readonly annees = computed(() =>
@@ -42,17 +38,14 @@ export class RessourcesComponent {
   );
   protected readonly types = Object.keys(LIBELLES_TYPE) as TypeRessource[];
 
-  /** Arborescence UFR > filière > matières (F2.2) pour naviguer sans formulaire. */
+  /** Arborescence filière > matières (F2.2) pour naviguer sans formulaire. */
   protected readonly arborescence = computed(() =>
-    this.structure.ufrs().map((u) => ({
-      nom: u.nom,
-      filieres: this.structure
-        .filieres()
-        .filter((f) => f.ufr === u.nom)
-        .map((f) => ({
-          nom: f.nom,
-          matieres: this.structure.matieres().filter((m) => m.filiere === f.nom).map((m) => m.nom),
-        })),
+    this.structure.filieres().map((f) => ({
+      nom: f.nom,
+      matieres: this.structure
+        .matieres()
+        .filter((m) => m.filiere === f.nom)
+        .map((m) => m.nom),
     })),
   );
 
@@ -61,7 +54,6 @@ export class RessourcesComponent {
     const terme = this.recherche().trim().toLowerCase();
     return this.toutes().filter((r) => {
       if (terme && !`${r.titre} ${r.matiere} ${r.filiere}`.toLowerCase().includes(terme)) return false;
-      if (this.filtreUfr() && r.ufr !== this.filtreUfr()) return false;
       if (this.filtreFiliere() && r.filiere !== this.filtreFiliere()) return false;
       if (this.filtreNiveau() && r.niveau !== this.filtreNiveau()) return false;
       if (this.filtreMatiere() && r.matiere !== this.filtreMatiere()) return false;
@@ -75,7 +67,6 @@ export class RessourcesComponent {
     () =>
       !!(
         this.recherche() ||
-        this.filtreUfr() ||
         this.filtreFiliere() ||
         this.filtreNiveau() ||
         this.filtreMatiere() ||
@@ -96,8 +87,9 @@ export class RessourcesComponent {
     });
   }
 
+  /** Télécharge le fichier de la ressource via l'API. */
   protected telecharger(r: Ressource): void {
-    this.service.incrementerTelechargements(r.id);
+    void this.service.telechargerFichier(r);
   }
 
   protected choisirFiliere(nom: string): void {
@@ -108,16 +100,11 @@ export class RessourcesComponent {
   protected choisirMatiere(nom: string): void {
     this.filtreMatiere.set(nom);
     const m = this.structure.matieres().find((x) => x.nom === nom);
-    if (m) {
-      this.filtreFiliere.set(m.filiere);
-      const f = this.structure.filieres().find((x) => x.nom === m.filiere);
-      if (f) this.filtreUfr.set(f.ufr);
-    }
+    if (m) this.filtreFiliere.set(m.filiere);
   }
 
   protected reinitialiser(): void {
     this.recherche.set('');
-    this.filtreUfr.set('');
     this.filtreFiliere.set('');
     this.filtreNiveau.set('');
     this.filtreMatiere.set('');

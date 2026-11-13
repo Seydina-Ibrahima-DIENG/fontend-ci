@@ -10,22 +10,26 @@ export const LIBELLES_TYPE: Record<TypeRessource, string> = {
   resume: 'Résumé',
 };
 
+/**
+ * Ressource telle qu'affichée : la fiche backend (RessourceEntity) enrichie
+ * de la matière, filière et niveau du cours auquel elle est rattachée.
+ */
 export interface Ressource {
   id: number;
   titre: string;
   type: TypeRessource;
-  ufr: string;
+  description?: string;
+  coursId: number;
+  matiere: string;
   filiere: string;
   niveau: string;
-  matiere: string;
+  /** Année de dépôt, dérivée de la date de création. */
   annee: number;
-  format: 'PDF' | 'DOCX' | 'PPTX';
-  tailleKo: number;
-  deposePar: string;
+  auteurId: number;
+  dateCreation: string;
+  /** Nom du fichier stocké (absent si la ressource n'a qu'un lien). */
+  nomFichier: string | null;
   telechargements: number;
-  /** Absent = publiée (données de démo). Un dépôt démarre en attente de validation (F3.3). */
-  statut?: StatutRessource;
-  description?: string;
+  statut: 'EN_ATTENTE' | 'PUBLIEE' | 'REJETEE';
+  motifRejet: string | null;
 }
-
-export type StatutRessource = 'publiee' | 'en_attente' | 'rejetee';

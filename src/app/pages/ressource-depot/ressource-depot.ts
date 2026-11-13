@@ -7,7 +7,7 @@ import { StructureService } from '../../core/services/structure.service';
 import { AuthService } from '../../core/services/auth.service';
 
 const EXTENSIONS = ['pdf', 'docx', 'pptx'] as const;
-const TAILLE_MAX_KO = 10 * 1024; // 10 Mo
+const TAILLE_MAX_OCTETS = 10 * 1024 * 1024; // 10 Mo
 
 @Component({
   selector: 'app-ressource-depot',
@@ -18,7 +18,7 @@ const TAILLE_MAX_KO = 10 * 1024; // 10 Mo
         <p class="page__eyebrow">Contribuer</p>
         <h1 class="page__title">Déposer une ressource</h1>
         <p class="page__lead">
-          Ton document sera publié après validation par l'équipe (ou un enseignant).
+          Ton document sera publié après validation par l'administration.
           Formats acceptés : PDF, DOCX, PPTX, 10 Mo maximum.
         </p>
 
@@ -50,17 +50,12 @@ const TAILLE_MAX_KO = 10 * 1024; // 10 Mo
 
             <label class="champ">
               <span class="champ__label">Matière</span>
-              <select name="matiere" required [(ngModel)]="matiere">
-                <option value="">Choisis une matière</option>
-                @for (m of structure.matieres(); track m.nom) {
-                  <option [value]="m.nom">{{ m.nom }} ({{ m.niveau }})</option>
+              <select name="matiere" required [(ngModel)]="coursId">
+                <option [ngValue]="null" disabled>Choisis une matière</option>
+                @for (m of structure.matieres(); track m.id) {
+                  <option [ngValue]="m.id">{{ m.nom }} ({{ m.niveau }})</option>
                 }
               </select>
-            </label>
-
-            <label class="champ">
-              <span class="champ__label">Année</span>
-              <input type="number" name="annee" required [(ngModel)]="annee" min="2000" max="2100" />
             </label>
 
             <label class="champ">
@@ -78,7 +73,7 @@ const TAILLE_MAX_KO = 10 * 1024; // 10 Mo
               <p class="alert alert--erreur" role="alert">{{ erreur() }}</p>
             }
 
-            <button type="submit" class="btn btn--primary" [disabled]="!formulaireValide()">Envoyer pour validation</button>
+            <button type="submit" class="btn btn--primary" [disabled]="!formulaireValide() || enCours()">Envoyer pour validation</button>
           </form>
         }
       </div>
@@ -98,33 +93,29 @@ export class RessourceDepotComponent {
 
   protected titre = '';
   protected type: TypeRessource = 'cours';
-  protected matiere = '';
-  protected annee = new Date().getFullYear();
+  protected coursId: number | null = null;
   protected description = '';
   protected fichier: File | null = null;
 
   protected readonly erreur = signal<string | null>(null);
+  protected readonly enCours = signal(false);
   protected readonly envoye = signal(false);
 
-  protected readonly formulaireValide = computed(() => !!this.titre.trim() && !!this.matiere && !!this.fichier);
+  protected readonly formulaireValide = computed(() => !!this.titre.trim() && this.coursId !== null && !!this.fichier);
 
   protected fichierChoisi(evenement: Event): void {
     const input = evenement.target as HTMLInputElement;
     const f = input.files?.[0] ?? null;
     this.erreur.set(null);
-    if (!f) {
-      this.fichier = null;
-      return;
-    }
+    this.fichier = null;
+    if (!f) return;
     const extension = f.name.split('.').pop()?.toLowerCase() ?? '';
     if (!(EXTENSIONS as readonly string[]).includes(extension)) {
-      this.fichier = null;
       this.erreur.set('Format non accepté. Utilise un PDF, un DOCX ou un PPTX.');
       input.value = '';
       return;
     }
-    if (f.size / 1024 > TAILLE_MAX_KO) {
-      this.fichier = null;
+    if (f.size > TAILLE_MAX_OCTETS) {
       this.erreur.set('Le fichier dépasse 10 Mo.');
       input.value = '';
       return;
@@ -132,32 +123,35 @@ export class RessourceDepotComponent {
     this.fichier = f;
   }
 
-  protected valider(): void {
+  protected async valider(): Promise<void> {
     const u = this.auth.courant();
-    const matiere = this.structure.matieres().find((m) => m.nom === this.matiere);
-    const filiere = this.structure.filieres().find((f) => f.nom === matiere?.filiere);
-    if (!u || !matiere || !filiere || !this.fichier) return;
+    if (!u) {
+      this.erreur.set('Connecte-toi pour déposer une ressource.');
+      return;
+    }
+    if (this.coursId === null || !this.fichier) return;
 
-    const extension = this.fichier.name.split('.').pop()?.toUpperCase() as 'PDF' | 'DOCX' | 'PPTX';
-    this.service.deposer({
+    this.erreur.set(null);
+    this.enCours.set(true);
+    const msg = await this.service.deposer({
       titre: this.titre.trim(),
-      type: this.type,
-      ufr: filiere.ufr,
-      filiere: filiere.nom,
-      niveau: matiere.niveau,
-      matiere: matiere.nom,
-      annee: Number(this.annee),
-      format: extension,
-      tailleKo: Math.round(this.fichier.size / 1024),
-      deposePar: u.role === 'tuteur' ? 'Tuteur' : 'Étudiant',
       description: this.description.trim(),
+      type: this.type,
+      coursId: this.coursId,
+      auteurId: u.id,
+      fichier: this.fichier,
     });
+    this.enCours.set(false);
+    if (msg) {
+      this.erreur.set(msg);
+      return;
+    }
     this.envoye.set(true);
   }
 
   protected reinitialiser(): void {
     this.titre = '';
-    this.matiere = '';
+    this.coursId = null;
     this.description = '';
     this.fichier = null;
     this.envoye.set(false);

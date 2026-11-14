@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { LIBELLES_TYPE, TypeRessource } from '../../core/models/ressource.model';
@@ -101,7 +101,11 @@ export class RessourceDepotComponent {
   protected readonly enCours = signal(false);
   protected readonly envoye = signal(false);
 
-  protected readonly formulaireValide = computed(() => !!this.titre.trim() && this.coursId !== null && !!this.fichier);
+  // Méthode et non computed() : titre, coursId et fichier sont des champs simples (ngModel), pas des
+  // signaux. Un computed() n'était évalué qu'une fois (formulaire vide) : le bouton restait grisé.
+  protected formulaireValide(): boolean {
+    return !!this.titre.trim() && this.coursId !== null && !!this.fichier;
+  }
 
   protected fichierChoisi(evenement: Event): void {
     const input = evenement.target as HTMLInputElement;

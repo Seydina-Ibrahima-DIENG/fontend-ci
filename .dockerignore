@@ -1,0 +1,12 @@
+# Ce qui ne doit PAS être envoyé à Docker lors du build
+node_modules
+dist
+.angular
+.git
+.vscode
+Dockerfile
+.dockerignore
+*.log
+.env*
+.npm
+npm-audit.json

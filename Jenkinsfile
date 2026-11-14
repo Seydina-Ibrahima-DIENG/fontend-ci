@@ -19,6 +19,8 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+                // Repart sans les rapports du build précédent (sinon ils fausseraient la comparaison)
+                sh 'rm -f npm-audit.json trivy-frontend.* rapport-securite.csv constats-*.csv resume-securite.txt reference-securite.csv'
             }
         }
         
@@ -80,6 +82,16 @@ pipeline {
                       --no-progress --severity HIGH,CRITICAL --exit-code 0 \
                       $IMAGE_NAME:$IMAGE_TAG > trivy-frontend.txt
                 '''
+                // Même analyse en JSON, TOUTES sévérités : une entrée par faille avec son CVE.
+                // Sert au rapport comparable d'un build à l'autre (ci/rapport-securite.sh).
+                sh '''
+                    docker run --rm \
+                      -v /var/run/docker.sock:/var/run/docker.sock \
+                      -v trivy-cache:/root/.cache/ \
+                      aquasec/trivy:latest image \
+                      --no-progress --skip-db-update --format json --exit-code 0 \
+                      $IMAGE_NAME:$IMAGE_TAG > trivy-frontend.json
+                '''
                 // Le pipeline échoue si une faille CRITIQUE corrigeable est trouvée
                 sh '''
                     docker run --rm \
@@ -110,11 +122,22 @@ pipeline {
 
     post {
         always {
+            // Rapport de sécurité comparable : mêmes noms de fichiers et mêmes colonnes à chaque build,
+            // un constat = un identifiant stable (CVE / GHSA), comparé au dernier build réussi.
+            // Lancé même si un scan a bloqué le build : c'est là qu'on en a le plus besoin.
+            sh 'bash ci/rapport-securite.sh frontend-ci || echo "Rapport de sécurité non généré"'
+            script {
+                if (fileExists('resume-securite.txt')) {
+                    currentBuild.description = readFile('resume-securite.txt').trim()
+                }
+            }
             // Rapports de sécurité conservés avec chaque build (onglet "Artefacts")
-            archiveArtifacts artifacts: 'npm-audit.json, trivy-frontend.txt', allowEmptyArchive: true
+            archiveArtifacts artifacts: 'npm-audit.json, trivy-frontend.txt, trivy-frontend.json, rapport-securite.csv, constats-nouveaux.csv, constats-corriges.csv, resume-securite.txt', allowEmptyArchive: true
             sh 'docker logout || true'
         }
         success {
+            // Seul un build complet et réussi devient la référence de comparaison
+            sh 'bash ci/rapport-securite.sh frontend-ci --enregistrer'
             echo "✅ Image publiée : ${IMAGE_NAME}:${IMAGE_TAG}"
         }
         failure {

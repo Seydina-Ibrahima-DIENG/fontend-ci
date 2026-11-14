@@ -10,3 +10,8 @@ Dockerfile
 .env*
 .npm
 npm-audit.json
+# Rapports de sécurité générés par le pipeline
+trivy-*
+*.csv
+resume-securite.txt
+ci

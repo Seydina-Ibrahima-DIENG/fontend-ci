@@ -25,15 +25,24 @@ export interface LoginResponse {
   roles: string[];
 }
 
-/** identity-service : InscriptionInstitutionnelleResponse */
-export interface InscriptionInstitutionnelleResponse {
-  utilisateurId: number;
+/**
+ * identity-service : InscriptionRequest (POST /auth/inscription, route publique).
+ * Email @uadb.edu.sn obligatoire. La réponse est une LoginResponse : le compte est actif
+ * et connecté immédiatement.
+ */
+export interface InscriptionRequest {
   nom: string;
   prenom: string;
   email: string;
-  role: string;
-  motDePasseTemporaire: string;
-  message: string;
+  motDePasse: string;
+  telephone?: string;
+  role: 'ETUDIANT' | 'ENSEIGNANT';
+  /** Obligatoire pour un étudiant. */
+  codePermanent?: string;
+  filiereId?: number;
+  niveauId?: number;
+  /** Facultatif, pour un enseignant. */
+  matriculeProfessionnel?: string;
 }
 
 /** identity-service : ProfilUtilisateurResponse (GET/PUT /utilisateurs/me) */

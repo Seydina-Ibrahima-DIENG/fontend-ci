@@ -61,10 +61,6 @@ export class ConnexionComponent {
       this.erreur.set(msg);
       return;
     }
-    if (this.auth.premiereConnexion()) {
-      this.router.navigateByUrl('/premiere-connexion');
-      return;
-    }
     this.router.navigateByUrl(this.auth.role() === 'admin' ? '/admin' : '/mes-seances');
   }
 }

@@ -6,7 +6,7 @@ import { lireToken } from '../services/session';
  * Routes publiques : on n'y envoie jamais le jeton. Un jeton périmé ferait
  * rejeter la requête par la gateway, même sur une route publique.
  */
-const ROUTES_PUBLIQUES = ['/auth/login', '/auth/inscription-institutionnelle'];
+const ROUTES_PUBLIQUES = ['/auth/login', '/auth/inscription'];
 
 /** Ajoute le jeton Bearer aux appels de l'API quand l'utilisateur est connecté. */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {

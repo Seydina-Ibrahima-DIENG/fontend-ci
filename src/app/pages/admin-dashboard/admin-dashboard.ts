@@ -55,6 +55,8 @@ export class AdminDashboardComponent {
   );
 
   constructor() {
+    // Le compteur « Utilisateurs » lit la liste partagée : elle doit être chargée ici aussi.
+    void this.utilisateurs.chargerComptes();
     void this.candidatureService.enAttente().then((liste) => this.candidatures.set(liste));
     void this.ressources.chargerEnAttente();
     void this.ressources.chargerSignalements();

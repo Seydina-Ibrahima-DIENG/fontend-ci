@@ -6,7 +6,6 @@ import { RessourceDetailComponent } from './pages/ressource-detail/ressource-det
 import { RessourceDepotComponent } from './pages/ressource-depot/ressource-depot';
 import { ConnexionComponent } from './pages/connexion/connexion';
 import { InscriptionComponent } from './pages/inscription/inscription';
-import { PremiereConnexionComponent } from './pages/premiere-connexion/premiere-connexion';
 import { MotDePasseOublieComponent } from './pages/mot-de-passe-oublie/mot-de-passe-oublie';
 import { TuteursComponent } from './pages/tuteurs/tuteurs';
 import { TuteurProfilComponent } from './pages/tuteur-profil/tuteur-profil';
@@ -36,7 +35,6 @@ export const routes: Routes = [
   // Authentification
   { path: 'connexion', component: ConnexionComponent, title: 'Connexion — Jangalma' },
   { path: 'inscription', component: InscriptionComponent, title: 'Inscription — Jangalma' },
-  { path: 'premiere-connexion', component: PremiereConnexionComponent, title: 'Première connexion — Jangalma' },
   { path: 'mot-de-passe-oublie', component: MotDePasseOublieComponent, title: 'Mot de passe oublié — Jangalma' },
 
   // Tutorat

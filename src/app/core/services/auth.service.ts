@@ -3,19 +3,14 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import {
   API_BASE,
-  InscriptionInstitutionnelleResponse,
+  InscriptionRequest,
   LoginResponse,
   ProfilUtilisateurResponse,
   messageErreur,
   roleDepuis,
 } from '../api/api';
 import { Role, Utilisateur } from '../models/models';
-import { ecrireToken, lireToken, rolesDuJeton } from './session';
-
-/** Compte connecté pour la première fois : il doit choisir son mot de passe avant tout. */
-export interface PremiereConnexion {
-  prenom: string;
-}
+import { ecrireToken, lireToken } from './session';
 
 /**
  * Authentification branchée sur identity-service (JWT).
@@ -28,9 +23,6 @@ export class AuthService {
   /** Utilisateur connecté, ou null pour un visiteur. */
   readonly courant = signal<Utilisateur | null>(null);
 
-  /** Renseigné entre la connexion avec un mot de passe temporaire et son remplacement. */
-  readonly premiereConnexion = signal<PremiereConnexion | null>(null);
-
   readonly estConnecte = computed(() => this.courant() !== null);
   readonly role = computed<Role | null>(() => this.courant()?.role ?? null);
 
@@ -38,16 +30,7 @@ export class AuthService {
   readonly pret: Promise<void>;
 
   constructor() {
-    const token = lireToken();
-    if (!token) {
-      this.pret = Promise.resolve();
-    } else if (rolesDuJeton(token).includes('PREMIERE_CONNEXION')) {
-      // Jeton limité : /utilisateurs/me le refuserait. On restaure l'état sans appel réseau.
-      this.premiereConnexion.set({ prenom: '' });
-      this.pret = Promise.resolve();
-    } else {
-      this.pret = this.chargerProfil();
-    }
+    this.pret = lireToken() ? this.chargerProfil() : Promise.resolve();
   }
 
   /** Renvoie l'erreur à afficher, ou null si la connexion a réussi. */
@@ -56,29 +39,24 @@ export class AuthService {
       const reponse = await firstValueFrom(
         this.http.post<LoginResponse>(`${API_BASE}/auth/login`, { email, motDePasse }),
       );
-      if (reponse.roles.includes('PREMIERE_CONNEXION')) {
-        // Jeton limité : il ne sert qu'à changer le mot de passe.
-        ecrireToken(reponse.accessToken);
-        this.premiereConnexion.set({ prenom: reponse.prenom });
-        return null;
-      }
-      ecrireToken(reponse.accessToken);
-      this.courant.set(depuisLogin(reponse));
+      this.ouvrirSession(reponse);
       return null;
     } catch (err) {
       return messageErreur(err, 'Email ou mot de passe incorrect.');
     }
   }
 
-  /** Remplace le mot de passe temporaire ; ouvre la session complète. */
-  async changerMotDePasseInitial(nouveauMotDePasse: string): Promise<string | null> {
+  /**
+   * Inscription libre d'un étudiant ou d'un enseignant (email @uadb.edu.sn obligatoire, vérifié
+   * par le backend). Le compte est actif tout de suite : la session est ouverte avec le jeton reçu.
+   * Renvoie l'erreur à afficher, ou null si l'inscription a réussi.
+   */
+  async inscrire(demande: InscriptionRequest): Promise<string | null> {
     try {
       const reponse = await firstValueFrom(
-        this.http.put<LoginResponse>(`${API_BASE}/auth/premiere-connexion/mot-de-passe`, { nouveauMotDePasse }),
+        this.http.post<LoginResponse>(`${API_BASE}/auth/inscription`, demande),
       );
-      ecrireToken(reponse.accessToken);
-      this.premiereConnexion.set(null);
-      this.courant.set(depuisLogin(reponse));
+      this.ouvrirSession(reponse);
       return null;
     } catch (err) {
       return messageErreur(err);
@@ -87,29 +65,7 @@ export class AuthService {
 
   deconnecter(): void {
     ecrireToken(null);
-    this.premiereConnexion.set(null);
     this.courant.set(null);
-  }
-
-  /**
-   * Inscription d'un étudiant ou d'un enseignant à partir de son matricule et de son email
-   * institutionnels. Le backend renvoie un mot de passe temporaire à changer à la connexion.
-   */
-  async inscriptionInstitutionnelle(
-    matricule: string,
-    email: string,
-  ): Promise<{ erreur: string | null; reponse?: InscriptionInstitutionnelleResponse }> {
-    try {
-      const reponse = await firstValueFrom(
-        this.http.post<InscriptionInstitutionnelleResponse>(`${API_BASE}/auth/inscription-institutionnelle`, {
-          matricule,
-          email,
-        }),
-      );
-      return { erreur: null, reponse };
-    } catch (err) {
-      return { erreur: messageErreur(err) };
-    }
   }
 
   /** Met à jour le profil de l'utilisateur connecté (nom, prénom, téléphone). */
@@ -123,6 +79,11 @@ export class AuthService {
     } catch (err) {
       return messageErreur(err);
     }
+  }
+
+  private ouvrirSession(reponse: LoginResponse): void {
+    ecrireToken(reponse.accessToken);
+    this.courant.set(depuisLogin(reponse));
   }
 
   private async chargerProfil(): Promise<void> {
